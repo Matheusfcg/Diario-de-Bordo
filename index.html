@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diario de Bordo · Rede</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#F7F5F3; --surface:#FFFFFF; --ink:#201B1A; --muted:#6B6461; --line:#E5E0DD;
+  --ok:#2F7D5C; --ok-bg:#E3F3EB; --open:#B4680A; --open-bg:#FBEDD9;
+  --radius:10px; --shadow:0 1px 2px rgba(32,27,26,.06);
+  --accent:#7A1220; --accent-2:#E4536B; --accent-strong:#C41230; --panel-tint:#F7E3E3;
+}
+[data-team="residencial"]{
+  --accent:#1D3461; --accent-2:#7C93C4; --accent-strong:#2A4A82; --panel-tint:#E4E9F7;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#17130F; --surface:#221C19; --ink:#F3EEEA; --muted:#B8ACA6; --line:#38302C;
+    --ok:#59C08B; --ok-bg:#1C3A2C; --open:#F0AE4E; --open-bg:#3D2E12;
+    --shadow:0 1px 2px rgba(0,0,0,.4);
+    --accent:#FF6B7F; --accent-2:#FFB3C0; --accent-strong:#FF4D68; --panel-tint:#2A1418;
+  }
+  [data-team="residencial"]:not([data-theme="light"]){
+    --accent:#89A8E8; --accent-2:#B9C8ED; --accent-strong:#6C8CD5; --panel-tint:#161E30;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#17130F; --surface:#221C19; --ink:#F3EEEA; --muted:#B8ACA6; --line:#38302C;
+  --ok:#59C08B; --ok-bg:#1C3A2C; --open:#F0AE4E; --open-bg:#3D2E12;
+  --shadow:0 1px 2px rgba(0,0,0,.4);
+  --accent:#FF6B7F; --accent-2:#FFB3C0; --accent-strong:#FF4D68; --panel-tint:#2A1418;
+}
+[data-team="residencial"][data-theme="dark"]{
+  --accent:#89A8E8; --accent-2:#B9C8ED; --accent-strong:#6C8CD5; --panel-tint:#161E30;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  -webkit-font-smoothing:antialiased;
+  transition:background .2s ease;
+}
+.page{max-width:1900px;margin:0 auto;padding:24px 24px 48px}
+.topbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:18px}
+.topbar__brand{display:flex;align-items:center;gap:12px}
+.topbar__mark{width:10px;height:34px;background:var(--accent-strong);border-radius:2px;flex-shrink:0;transition:background .2s ease}
+.topbar__brand h1{font-family:'Space Grotesk','Arial Narrow',sans-serif;font-size:21px;font-weight:600;margin:0;letter-spacing:-0.01em}
+.topbar__sub{margin:3px 0 0;font-size:13px;color:var(--muted)}
+.topbar__right{display:flex;align-items:center;gap:10px}
+.tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px}
+.tab{border:none;background:transparent;color:var(--muted);font:inherit;font-size:14px;font-weight:500;padding:8px 20px;border-radius:999px;cursor:pointer;transition:background .15s ease,color .15s ease}
+.tab:hover{color:var(--ink)}
+.tab[data-team="movel"].tab--active{background:#C41230;color:#fff}
+.tab[data-team="residencial"].tab--active{background:#2A4A82;color:#fff}
+.btn-fullscreen{
+  display:flex;align-items:center;justify-content:center;width:38px;height:38px;
+  background:var(--surface);border:1px solid var(--line);border-radius:8px;color:var(--muted);
+  cursor:pointer;transition:color .15s ease,border-color .15s ease;flex-shrink:0;
+}
+.btn-fullscreen:hover{color:var(--ink);border-color:var(--accent)}
+.btn-fullscreen .icon-compress{display:none}
+.btn-fullscreen.is-fullscreen .icon-expand{display:none}
+.btn-fullscreen.is-fullscreen .icon-compress{display:block}
+.filterbar{display:flex;flex-wrap:wrap;gap:16px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px 20px;margin-bottom:18px}
+.filter{display:flex;flex-direction:column;gap:6px;min-width:150px;flex:1 1 150px}
+.filter label{font-size:12px;color:var(--muted)}
+.filter input,.filter select{font:inherit;font-size:14px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px}
+.filter input:focus,.filter select:focus{outline:2px solid var(--accent);outline-offset:1px}
+
+.canvas-outer{width:100%;overflow:hidden;position:relative}
+.canvas-fixed{width:1500px;height:1050px;overflow:hidden;transform-origin:top left;background:var(--bg);transition:background .2s ease;visibility:hidden}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+.card__title{margin:0 0 8px;font-size:13px;font-weight:600;color:var(--muted)}
+canvas{max-width:100%}
+
+.row-top{display:grid;grid-template-columns:250px 1fr 300px;grid-template-rows:110px 1fr;gap:14px;height:340px;margin-bottom:14px}
+.row-top .card{min-height:0;min-width:0;display:flex;flex-direction:column;padding:14px 16px;overflow:hidden}
+.row-top .card--kpi{grid-column:1;grid-row:1;justify-content:center;background:var(--panel-tint);border-color:transparent}
+.row-top .card--status{grid-column:1;grid-row:2}
+.row-top .card--login{grid-column:2;grid-row:1/3}
+.row-top .card--grupo{grid-column:3;grid-row:1/3}
+.row-top .chart-wrap{position:relative;flex:1 1 auto;min-height:0;min-width:0}
+.row-top .chart-scroll{flex:1 1 auto;min-height:0;min-width:0;overflow-y:auto;overflow-x:hidden}
+.row-top .chart-scroll .chart-wrap{min-height:100%}
+
+.kpi{font-family:'Space Grotesk',sans-serif;font-size:40px;font-weight:700;color:var(--accent);margin:0;line-height:1;transition:color .2s ease}
+.card__sub{margin:8px 0 0;font-size:13px;color:var(--muted)}
+
+.row-mid{display:grid;grid-template-columns:1fr 1fr;gap:14px;height:210px;margin-bottom:14px}
+.row-mid .card{display:flex;flex-direction:column;min-height:0;min-width:0;padding:14px 16px}
+.row-mid .chart-wrap{position:relative;flex:1 1 auto;min-height:0;min-width:0}
+
+.table-card{height:472px;display:flex;flex-direction:column;padding:14px 16px}
+.table-card__header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;flex-wrap:wrap;gap:8px;flex:0 0 auto}
+.table-card__count{font-size:13px;color:var(--muted)}
+.table-scroll{flex:1 1 auto;min-height:0;overflow-x:hidden;overflow-y:auto;border:1px solid var(--line);border-radius:8px}
+table{table-layout:fixed;border-collapse:collapse;width:100%;font-size:13px}
+thead th{position:sticky;top:0;background:var(--panel-tint);text-align:left;padding:9px 8px;font-weight:600;border-bottom:1px solid var(--line);color:var(--ink);font-size:12px;line-height:1.3;white-space:nowrap;z-index:2;transition:background .2s ease}
+.th-label{overflow:hidden;text-overflow:ellipsis;display:inline-block;max-width:calc(100% - 16px);vertical-align:middle}
+.th-filter-btn{border:none;background:transparent;color:var(--muted);cursor:pointer;font-size:9px;padding:2px 3px;margin-left:2px;border-radius:3px;vertical-align:middle;line-height:1}
+.th-filter-btn:hover{background:var(--line);color:var(--ink)}
+.th-filter-btn--active{color:var(--accent);font-weight:700}
+
+.cf-popover{position:fixed;width:260px;background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:10px;z-index:1000;font-family:'Inter',sans-serif;font-size:13px;color:var(--ink)}
+.cf-popover__search{margin-bottom:8px}
+.cf-popover__search input{width:100%;font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);box-sizing:border-box}
+.cf-select-all{display:flex;align-items:center;gap:8px;padding:4px 2px;border-bottom:1px solid var(--line);margin-bottom:4px;cursor:pointer;font-weight:600;font-size:12px}
+.cf-popover__list{max-height:260px;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column}
+.cf-item{display:flex;align-items:center;gap:8px;padding:4px 2px;cursor:pointer;font-size:12px;border-radius:4px}
+.cf-item:hover{background:var(--bg)}
+.cf-item span:first-of-type{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cf-item__count{color:var(--muted);font-size:11px}
+.cf-popover__actions{display:flex;gap:8px;margin-top:10px;padding-top:8px;border-top:1px solid var(--line)}
+.cf-btn{flex:1;padding:6px 10px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:12px;cursor:pointer}
+.cf-btn--primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.cf-btn:hover{opacity:.85}
+tbody td{padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+tbody tr:hover{background:var(--bg)}
+td.mono{font-family:'IBM Plex Mono','Courier New',monospace;font-size:12px}
+td.desc{white-space:normal;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis}
+td.empty{text-align:center;color:var(--muted);padding:32px;white-space:normal}
+.pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.pill--ok{background:var(--ok-bg);color:var(--ok)}
+.pill--open{background:var(--open-bg);color:var(--open)}
+footer.note{margin-top:16px;font-size:12px;color:var(--muted);text-align:center}
+
+@media (max-width:720px){
+  .page{padding:16px 10px 36px}
+  .topbar__brand h1{font-size:18px}
+}
+
+:fullscreen{background:var(--bg)}
+:fullscreen .page{max-width:none;padding:18px 24px 32px}
+</style>
+</head>
+<body>
+
+<div class="page">
+  <header class="topbar">
+    <div class="topbar__brand">
+      <span class="topbar__mark"></span>
+      <div>
+        <h1>Diario de Bordo &middot; Rede</h1>
+        <p class="topbar__sub">Claro &middot; Centro Tatico</p>
+      </div>
+    </div>
+    <div class="topbar__right">
+      <nav class="tabs">
+        <button class="tab tab--active" data-team="movel">Movel</button>
+        <button class="tab" data-team="residencial">Residencial</button>
+      </nav>
+      <button class="btn-fullscreen" id="btn-fullscreen" aria-label="Ampliar tela" title="Ampliar tela">
+        <svg class="icon-expand" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <polyline points="8 3 3 3 3 8"></polyline>
+  <polyline points="16 3 21 3 21 8"></polyline>
+  <polyline points="3 16 3 21 8 21"></polyline>
+  <polyline points="21 16 21 21 16 21"></polyline>
+</svg>
+        <svg class="icon-compress" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <polyline points="3 8 8 8 8 3"></polyline>
+  <polyline points="21 8 16 8 16 3"></polyline>
+  <polyline points="3 16 8 16 8 21"></polyline>
+  <polyline points="21 16 16 16 16 21"></polyline>
+</svg>
+      </button>
+    </div>
+  </header>
+
+  <section class="filterbar">
+    <div class="filter">
+      <label for="f-date-from">De</label>
+      <input type="date" id="f-date-from">
+    </div>
+    <div class="filter">
+      <label for="f-date-to">Ate</label>
+      <input type="date" id="f-date-to">
+    </div>
+    <div class="filter">
+      <label for="f-grupo">Filtrar por <span id="f-grupo-label">ilha</span></label>
+      <select id="f-grupo"></select>
+    </div>
+    <div class="filter">
+      <label for="f-status">Status</label>
+      <select id="f-status">
+        <option value="Todos">Todos</option>
+        <option value="Fechado">Fechado</option>
+        <option value="Aberto">Aberto</option>
+      </select>
+    </div>
+  </section>
+
+  <div class="canvas-outer" id="canvas-outer">
+    <div class="canvas-fixed" id="canvas-fixed">
+
+      <section class="row-top">
+        <div class="card card--kpi">
+          <p class="card__title">Total de chamados</p>
+          <p class="kpi" id="kpi-total">0</p>
+          <p class="card__sub" id="kpi-sub"></p>
+        </div>
+        <div class="card card--status">
+          <p class="card__title">Status dos chamados</p>
+          <div class="chart-wrap"><canvas id="chart-status"></canvas></div>
+        </div>
+        <div class="card card--login">
+          <p class="card__title">Qtd. de login por chamado</p>
+          <div class="chart-wrap"><canvas id="chart-login"></canvas></div>
+        </div>
+        <div class="card card--grupo">
+          <p class="card__title" id="grupo-chart-title">Qtd. de chamados por ilha</p>
+          <div class="chart-scroll" id="chart-grupo-scroll">
+            <div class="chart-wrap" id="chart-grupo-wrap"><canvas id="chart-grupo"></canvas></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="row-mid">
+        <div class="card">
+          <p class="card__title">Qtd. de eventos por chamado</p>
+          <div class="chart-wrap"><canvas id="chart-tipo"></canvas></div>
+        </div>
+        <div class="card">
+          <p class="card__title">Qtd. de EPS por chamado</p>
+          <div class="chart-wrap"><canvas id="chart-eps"></canvas></div>
+        </div>
+      </section>
+
+      <section class="card table-card">
+        <div class="table-card__header">
+          <p class="card__title" style="margin:0">Chamados detalhados</p>
+          <p class="table-card__count" id="table-count"></p>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <colgroup>
+              <col style="width:7%"><col style="width:5%"><col style="width:8%"><col style="width:6%">
+              <col style="width:21%"><col style="width:14%"><col style="width:9%"><col style="width:9%">
+              <col style="width:8%"><col style="width:7%"><col style="width:6%">
+            </colgroup>
+            <thead>
+              <tr id="table-head-row"></tr>
+            </thead>
+            <tbody id="table-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <footer class="note">Dados carregados a partir do Diario de Bordo exportado do Power BI &middot; use os filtros acima para refinar a visualizacao &middot; use o botao no topo para tela cheia.</footer>
+</div>
+
+<div class="cf-popover" id="cf-popover" hidden>
+  <div class="cf-popover__search">
+    <input type="text" id="cf-search" placeholder="Pesquisar">
+  </div>
+  <label class="cf-select-all">
+    <input type="checkbox" id="cf-select-all" checked><span>Selecionar tudo</span>
+  </label>
+  <div class="cf-popover__list" id="cf-list"></div>
+  <div class="cf-popover__actions">
+    <button type="button" class="cf-btn cf-btn--primary" id="cf-ok">OK</button>
+    <button type="button" class="cf-btn" id="cf-cancel">Cancelar</button>
+  </div>
+</div>
+
+<script>
+const DATA = {"movel": [{"date": "2026-10-01", "chamado": "6010855", "codEvento": 106113, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Carauari - AM (CN: 97)", "impacto": null, "inicio": "2026-10-01T02:26:00", "fim": "2026-10-01T10:26:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Gustavo.Porfírio", "loginFec": "Kamilly.Bomfim", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 8.0}, {"date": "2026-10-01", "chamado": "6009859", "codEvento": 106117, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Sant'ana Do Livramento, São José Do Norte, Arroio Grande e Colinas - RS", "impacto": null, "inicio": "2026-10-01T08:00:00", "fim": "2026-10-01T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Gustavo.Porfírio", "loginFec": "Fabio.Trindade", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-01", "chamado": "6010395", "codEvento": 106118, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Iretama, Nova Londrina e Anitápolis - PR e SC", "impacto": null, "inicio": "2026-10-01T08:00:00", "fim": "2026-10-01T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Gustavo.Porfírio", "loginFec": "Fabio.Trindade", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-01", "chamado": "6008434", "codEvento": 106120, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Paudalho, Belo Jardim, São Gonçalo Do Amarante e São João Da Fronteira - PE, RN e PI", "impacto": null, "inicio": "2026-10-01T08:00:00", "fim": "2026-10-01T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Gustavo.Porfírio", "loginFec": "Fabio.Trindade", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-01", "chamado": "5981371", "codEvento": 106121, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Várias Cidades - MT, GO e MS", "impacto": null, "inicio": "2026-10-01T08:00:00", "fim": "2026-10-01T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Gustavo.Porfírio", "loginFec": "Fabio.Trindade", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-01", "chamado": "6010915", "codEvento": 106122, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G - Santo Antônio Do Amparo - MG", "impacto": null, "inicio": "2026-10-01T08:00:00", "fim": "2026-10-01T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Gustavo.Porfírio", "loginFec": "Fabio.Trindade", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-01", "chamado": "5995465", "codEvento": 106123, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Várias Cidades - BA", "impacto": null, "inicio": "2026-10-01T08:00:00", "fim": "2026-10-01T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Gustavo.Porfírio", "loginFec": "Fabio.Trindade", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-01", "chamado": "5891393", "codEvento": 106114, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Paraibuna, Tremembé, Porangaba, Assis e Indiana - SP", "impacto": null, "inicio": "2026-10-01T08:00:00", "fim": "2026-10-01T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Gustavo.Porfírio", "loginFec": "Fabio.Trindade", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-01", "chamado": "6009149", "codEvento": 106115, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 4G e 5G - Várias Cidades - RJ", "impacto": null, "inicio": "2026-10-01T08:00:00", "fim": "2026-10-01T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Gustavo.Porfírio", "loginFec": "Fabio.Trindade", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-01", "chamado": "5992695", "codEvento": 106119, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G, 4G e 5G - Várias Cidades - AM, MA e PA", "impacto": null, "inicio": "2026-10-01T08:00:00", "fim": "2026-10-01T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Gustavo.Porfírio", "loginFec": "Fabio.Trindade", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-01", "chamado": "PDST-2577915", "codEvento": 106124, "desc": "Atraso nos intervalosImpacto confirmado pela operação", "impacto": 1.0, "inicio": "2026-10-01T09:00:00", "fim": null, "tipoEvento": "SFTP", "status": "Aberto", "loginAb": "Gustavo.Porfírio", "loginFec": null, "grupo": "AEC - PORTABILIDADE", "grupoTags": ["AEC - PORTABILIDADE"], "eps": "AEC", "slaH": null}, {"date": "2026-10-01", "chamado": "6012511", "codEvento": 106129, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Nova Esperança e Uniflor - PR (CN: 44)", "impacto": null, "inicio": "2026-10-01T10:11:00", "fim": "2026-10-01T15:09:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Gustavo.Porfírio", "loginFec": "Fabio.Trindade", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 4.97}, {"date": "2026-10-01", "chamado": null, "codEvento": 106126, "desc": "Indisponibilidade nas renovações do cliente Magalu.Impacto confirmado pela COTI.", "impacto": null, "inicio": "2026-10-01T11:26:00", "fim": "2026-10-01T15:06:00", "tipoEvento": "MVNO MAGALU", "status": "Fechado", "loginAb": "Gustavo.Porfírio", "loginFec": "Fabio.Trindade", "grupo": "DAC - N/A", "grupoTags": ["DAC - N/A"], "eps": "DAC", "slaH": 3.67}, {"date": "2026-10-01", "chamado": "9420", "codEvento": 106125, "desc": "Todos leads do mês de 09/2026 constam como retido.Impacto confirmado pela operação.", "impacto": null, "inicio": "2026-10-01T11:50:00", "fim": "2026-10-05T15:00:00", "tipoEvento": "NEOMANAGER", "status": "Fechado", "loginAb": "Ian.Carreon", "loginFec": "Nathallia.Proetti", "grupo": "AEC - Claro retenção ativo", "grupoTags": ["AEC - Claro retenção ativo"], "eps": "AEC", "slaH": 99.17}, {"date": "2026-10-01", "chamado": "2327315", "codEvento": 106127, "desc": "Interrupção de todos os serviços do Residencial CASTRO - INTERRUPÇÃO DO TRÁFEGO, REDE NEUTRA VITA", "impacto": null, "inicio": "2026-10-01T12:11:00", "fim": "2026-10-01T13:47:00", "tipoEvento": "REDE VIRTUA", "status": "Fechado", "loginAb": "Kamilly.Bomfim", "loginFec": "Ian.Carreon", "grupo": "DAC - N3", "grupoTags": ["DAC - N3"], "eps": "DAC", "slaH": 1.6}, {"date": "2026-10-01", "chamado": "INC-405822", "codEvento": 106128, "desc": "Falha no cancelamento de linha banda larga.", "impacto": 0.8, "inicio": "2026-10-01T12:45:00", "fim": "2026-10-01T13:09:00", "tipoEvento": "SOLAR", "status": "Fechado", "loginAb": "vanuza.rodrigues", "loginFec": "vanuza.rodrigues", "grupo": "Alm - CLARO PÓS RETENÇÂO", "grupoTags": ["Alm - CLARO PÓS RETENÇÂO"], "eps": "ALM", "slaH": 0.4}, {"date": "2026-10-01", "chamado": "INC-406592", "codEvento": 106131, "desc": "Erro no direcionamento de chamadas.Impactando 50 P.A's - 100%Impacto confirmado pela operação.", "impacto": 1.0, "inicio": "2026-10-01T15:40:00", "fim": "2026-10-01T17:37:00", "tipoEvento": "NICE", "status": "Fechado", "loginAb": "Petherson.Fagundes", "loginFec": "Nathallia.Proetti", "grupo": "AEC - CLARO MÓVEL S2S, AEC - S2S CONTROLE", "grupoTags": ["AEC - CLARO MÓVEL S2S", "AEC - S2S CONTROLE"], "eps": "AEC", "slaH": 1.95}, {"date": "2026-10-01", "chamado": "INC-406614", "codEvento": 106130, "desc": "Alta Disponibilidade no Skill Piloto S2S Controle Impactando 28 PA’S – 100% Impacto confirmado pela staff Gabriel", "impacto": 1.0, "inicio": "2026-10-01T15:49:00", "fim": "2026-10-01T17:30:00", "tipoEvento": "NICE", "status": "Fechado", "loginAb": "Fabio.Trindade", "loginFec": "Gustavo.Porfírio", "grupo": "Alm - CONTROLE S2S GRUPO PILOTO", "grupoTags": ["Alm - CONTROLE S2S GRUPO PILOTO"], "eps": "ALM", "slaH": 1.68}, {"date": "2026-10-01", "chamado": "6015474", "codEvento": 106146, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G, 4G e 5G: Mendes - RJ (CN: 24)", "impacto": null, "inicio": "2026-10-01T17:29:00", "fim": "2026-10-02T00:20:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Nathallia.Proetti", "loginFec": "Kamilly.Bomfim", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 6.85}, {"date": "2026-10-01", "chamado": "6015477", "codEvento": 106145, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Nova Crixás - GO (CN: 62)", "impacto": null, "inicio": "2026-10-01T17:32:00", "fim": "2026-10-01T23:54:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Fabio.Trindade", "loginFec": "Gustavo.Porfírio", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 6.37}, {"date": "2026-10-01", "chamado": "6135772026", "codEvento": 106141, "desc": "Interrupção da Rede de Voz de Macaé - Estamos com as Media Gatewas Huawei e Siemens de Macaé isoladas.", "impacto": null, "inicio": "2026-10-01T17:41:00", "fim": "2026-10-01T23:30:00", "tipoEvento": "REDE VOZ FIXA", "status": "Fechado", "loginAb": "Pedro.Oliveira", "loginFec": "Ian.Carreon", "grupo": "DAC - N3", "grupoTags": ["DAC - N3"], "eps": "DAC", "slaH": 5.82}, {"date": "2026-10-01", "chamado": "5995465", "codEvento": 106132, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Várias Cidades - BA", "impacto": null, "inicio": "2026-10-01T18:00:00", "fim": "2026-10-02T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Fabio.Trindade", "loginFec": "Ian.Carreon", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-01", "chamado": "6013753", "codEvento": 106133, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Senhora De Oliveira, Santo Antônio Do Amparo, Diogo De Vasconcelos e Dona Eusébia - MG", "impacto": null, "inicio": "2026-10-01T18:00:00", "fim": "2026-10-02T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Fabio.Trindade", "loginFec": "Ian.Carreon", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-01", "chamado": "5981371", "codEvento": 106134, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Várias Cidades - MT e MS", "impacto": null, "inicio": "2026-10-01T18:00:00", "fim": "2026-10-02T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Fabio.Trindade", "loginFec": "Ian.Carreon", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-01", "chamado": "6012619", "codEvento": 106135, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 3G e 4G - Araripina e Joaquim Gomes - PE e AL", "impacto": null, "inicio": "2026-10-01T18:00:00", "fim": "2026-10-02T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Fabio.Trindade", "loginFec": "Ian.Carreon", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-01", "chamado": "6010187", "codEvento": 106136, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G, 4G e 5G - Várias Cidades - PA, AM, RR e MA", "impacto": null, "inicio": "2026-10-01T18:00:00", "fim": "2026-10-02T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Fabio.Trindade", "loginFec": "Ian.Carreon", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-01", "chamado": "6013792", "codEvento": 106137, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 4G - Manoel Ribas - PR", "impacto": null, "inicio": "2026-10-01T18:00:00", "fim": "2026-10-02T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Fabio.Trindade", "loginFec": "Ian.Carreon", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-01", "chamado": "6009891", "codEvento": 106138, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 3G e 4G - São José Do Norte, Arroio Grande, Jaguarão, Bagé e Eldorado Do Sul - RS", "impacto": null, "inicio": "2026-10-01T18:00:00", "fim": "2026-10-02T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Fabio.Trindade", "loginFec": "Ian.Carreon", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-01", "chamado": "6014566", "codEvento": 106139, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G, 4G e 5G - Mesquita e Guaçuí - RJ e ES", "impacto": null, "inicio": "2026-10-01T18:00:00", "fim": "2026-10-02T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Fabio.Trindade", "loginFec": "Ian.Carreon", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-01", "chamado": "6010037", "codEvento": 106140, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Várias Cidades - SP", "impacto": null, "inicio": "2026-10-01T18:00:00", "fim": "2026-10-02T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Fabio.Trindade", "loginFec": "Ian.Carreon", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-01", "chamado": "6015870", "codEvento": 106142, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Volta Redonda e Barra do Piraí - RJ (CN: 24)", "impacto": null, "inicio": "2026-10-01T18:24:00", "fim": "2026-10-01T22:16:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Petherson.Fagundes", "loginFec": "Kamilly.Bomfim", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 3.87}, {"date": "2026-10-01", "chamado": "INC-406986", "codEvento": 106144, "desc": "Erro ao visualizar prazo de reativação de linha. Impactando 300HC´s - 100%PA´s. Impacto confirmado pelo staff Marcio Ribeiro.", "impacto": 0.29, "inicio": "2026-10-01T18:57:00", "fim": null, "tipoEvento": "SOLAR", "status": "Aberto", "loginAb": "Fabio.Trindade", "loginFec": null, "grupo": "AEC - CLARO MOVEL CRC", "grupoTags": ["AEC - CLARO MOVEL CRC"], "eps": "AEC", "slaH": null}, {"date": "2026-10-01", "chamado": "6015669", "codEvento": 106143, "desc": "Interrupção de todos os serviços do Residencial Manhuaçu - Interrupção do tráfego.", "impacto": null, "inicio": "2026-10-01T19:32:00", "fim": "2026-10-01T20:41:00", "tipoEvento": "REDE VIRTUA", "status": "Fechado", "loginAb": "Nathallia.Proetti", "loginFec": "Fabio.Trindade", "grupo": "DAC - N3", "grupoTags": ["DAC - N3"], "eps": "DAC", "slaH": 1.15}, {"date": "2026-10-02", "chamado": "6016700", "codEvento": 106148, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: São Félix de Minas - MG (CN: 33)", "impacto": null, "inicio": "2026-10-02T00:03:00", "fim": "2026-10-02T08:30:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Gustavo.Porfírio", "loginFec": "Gustavo.Porfírio", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 8.45}, {"date": "2026-10-02", "chamado": "6016428", "codEvento": 106147, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Acaiaca - MG (CN: 31)", "impacto": null, "inicio": "2026-10-02T00:05:00", "fim": "2026-10-02T02:10:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Ian.Carreon", "loginFec": "Ian.Carreon", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 2.08}, {"date": "2026-10-02", "chamado": "6016903", "codEvento": 106149, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Laranja da Terra - ES (CN: 27)", "impacto": null, "inicio": "2026-10-02T00:42:00", "fim": "2026-10-02T08:06:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Gustavo.Porfírio", "loginFec": "Gustavo.Porfírio", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 7.4}, {"date": "2026-10-02", "chamado": "6022048", "codEvento": 106191, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Itajubá - MG (CN: 35)", "impacto": null, "inicio": "2026-10-02T02:16:00", "fim": "2026-10-03T04:41:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Vinicius.Souza", "loginFec": "Vinicius.Souza", "grupo": "DAC - N3", "grupoTags": ["DAC - N3"], "eps": "DAC", "slaH": 26.42}, {"date": "2026-10-02", "chamado": "14535556", "codEvento": 106150, "desc": "Degradação de alguns serviços do Residencial Parobé - DEGRADAÇÃO NO TRÁFEGO DEVIDO QUEDA DE ONTS NA OLT PAKPAROLT01", "impacto": null, "inicio": "2026-10-02T06:16:00", "fim": "2026-10-02T09:10:00", "tipoEvento": "REDE VIRTUA", "status": "Fechado", "loginAb": "Kamilly.Bomfim", "loginFec": "Kamilly.Bomfim", "grupo": "DAC - N2", "grupoTags": ["DAC - N2"], "eps": "DAC", "slaH": 2.9}, {"date": "2026-10-02", "chamado": "5981371", "codEvento": 106154, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Várias Cidades - MT, MS, GO e TO", "impacto": null, "inicio": "2026-10-02T08:00:00", "fim": "2026-10-02T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Ian.Carreon", "loginFec": "Nathallia.Proetti", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-02", "chamado": "6013753", "codEvento": 106155, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Senhora De Oliveira, Piranga, Presidente Bernardes, Santa Rita Do Sapucaí e Jacutinga - MG", "impacto": null, "inicio": "2026-10-02T08:00:00", "fim": "2026-10-02T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Ian.Carreon", "loginFec": "Nathallia.Proetti", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-02", "chamado": "6017095", "codEvento": 106151, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Araçariguama, Vargem Grande Do Sul, Novais, Paraibuna e Tremembé - SP", "impacto": null, "inicio": "2026-10-02T08:00:00", "fim": "2026-10-02T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Ian.Carreon", "loginFec": "Nathallia.Proetti", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-02", "chamado": "6010563", "codEvento": 106152, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Arroio Grande, Jaguarão, Almirante Tamandaré Do Sul e Poço Das Antas - RS", "impacto": null, "inicio": "2026-10-02T08:00:00", "fim": "2026-10-02T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Ian.Carreon", "loginFec": "Nathallia.Proetti", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-02", "chamado": "6012445", "codEvento": 106153, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G, 4G e 5G - Várias Cidades - RR, PA, AM, AP e MA", "impacto": null, "inicio": "2026-10-02T08:00:00", "fim": "2026-10-02T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Ian.Carreon", "loginFec": "Nathallia.Proetti", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-02", "chamado": "5995465", "codEvento": 106156, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Várias Cidades - BA", "impacto": null, "inicio": "2026-10-02T08:00:00", "fim": "2026-10-02T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Ian.Carreon", "loginFec": "Nathallia.Proetti", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-02", "chamado": "9425", "codEvento": 106157, "desc": "Não recebemos a Dem 1165.Impacto confirmado pela operação.", "impacto": 1.0, "inicio": "2026-10-02T08:36:00", "fim": null, "tipoEvento": "NEOMANAGER", "status": "Aberto", "loginAb": "Kamilly.Bomfim", "loginFec": null, "grupo": "AEC - PORTABILIDADE", "grupoTags": ["AEC - PORTABILIDADE"], "eps": "AEC", "slaH": null}, {"date": "2026-10-02", "chamado": "INC-407508", "codEvento": 106158, "desc": "Erro renovação do Prezão. Impactando 85 HCs - 100%Impacto confirmado pelo Staff Douglas.", "impacto": 1.0, "inicio": "2026-10-02T09:43:00", "fim": "2026-10-02T12:15:00", "tipoEvento": "WPP", "status": "Fechado", "loginAb": "Gustavo.Porfírio", "loginFec": "Kamilly.Bomfim", "grupo": "AEC - PRE PAGO", "grupoTags": ["AEC - PRE PAGO"], "eps": "AEC", "slaH": 2.53}, {"date": "2026-10-02", "chamado": "2330984", "codEvento": 106161, "desc": "Degradação do Netfone SÃO JOSES DOS CAMPOS,SOROCABA E SANTOS DD 12,13,15 - Degradação do fone Cidade DD 12,13,15, - Degradação no trafego do fone", "impacto": null, "inicio": "2026-10-02T10:00:00", "fim": "2026-10-02T11:00:00", "tipoEvento": "REDE VIRTUA", "status": "Fechado", "loginAb": "Kamilly.Bomfim", "loginFec": "Kamilly.Bomfim", "grupo": "DAC - N3", "grupoTags": ["DAC - N3"], "eps": "DAC", "slaH": 1.0}, {"date": "2026-10-02", "chamado": "48552026", "codEvento": 106159, "desc": "Interrupção da Rede de Voz Ipatinga - Perda de comunicação o Media Gateway Huawei Ipatinga. Queda de 1x14M Belo Horizonte e Ipatinga", "impacto": null, "inicio": "2026-10-02T10:21:00", "fim": "2026-10-02T14:45:00", "tipoEvento": "REDE VOZ FIXA", "status": "Fechado", "loginAb": "Kamilly.Bomfim", "loginFec": "Nathallia.Proetti", "grupo": "DAC - N3", "grupoTags": ["DAC - N3"], "eps": "DAC", "slaH": 4.4}, {"date": "2026-10-02", "chamado": "6018613", "codEvento": 106160, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Itatiba - SP (CN: 11)", "impacto": null, "inicio": "2026-10-02T10:27:00", "fim": "2026-10-02T15:16:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Ian.Carreon", "loginFec": "Pedro.Oliveira", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 4.82}, {"date": "2026-10-02", "chamado": "615393", "codEvento": 106164, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Cachoeira do Arari e Barcarena - PA (CN 91)", "impacto": null, "inicio": "2026-10-02T12:51:00", "fim": "2026-10-02T14:30:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "psantos", "loginFec": "psantos", "grupo": "DAC - N3", "grupoTags": ["DAC - N3"], "eps": "DAC", "slaH": 1.65}, {"date": "2026-10-02", "chamado": "14535816", "codEvento": 106162, "desc": "Degradação de alguns serviços do Residencial Colatina - Degradação", "impacto": null, "inicio": "2026-10-02T13:02:00", "fim": "2026-10-03T13:36:00", "tipoEvento": "REDE VIRTUA", "status": "Fechado", "loginAb": "Kamilly.Bomfim", "loginFec": "Paulo.Vilaruel", "grupo": "DAC - N2", "grupoTags": ["DAC - N2"], "eps": "DAC", "slaH": 24.57}, {"date": "2026-10-02", "chamado": "6018640", "codEvento": 106180, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Colatina - ES (CN: 27)", "impacto": null, "inicio": "2026-10-02T13:02:00", "fim": "2026-10-02T14:56:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Paulo.Vilaruel", "loginFec": "Paulo.Vilaruel", "grupo": "DAC - N3", "grupoTags": ["DAC - N3"], "eps": "DAC", "slaH": 1.9}, {"date": "2026-10-02", "chamado": "PDST-2579096", "codEvento": 106163, "desc": "Erro na coluna nome_do_cliente.", "impacto": null, "inicio": "2026-10-02T15:12:00", "fim": null, "tipoEvento": "SFTP", "status": "Aberto", "loginAb": "Nathallia.Proetti", "loginFec": null, "grupo": "AEC - RETENÇÃO ATIVA", "grupoTags": ["AEC - RETENÇÃO ATIVA"], "eps": "AEC", "slaH": null}, {"date": "2026-10-02", "chamado": "14535967", "codEvento": 106167, "desc": "Degradação de alguns serviços do Residencial Brasília - Degradação no tráfego queda do roteador BSBTGARTD02 isolando o HUB de Taguatinga", "impacto": null, "inicio": "2026-10-02T15:14:00", "fim": "2026-10-02T15:36:00", "tipoEvento": "REDE VIRTUA", "status": "Fechado", "loginAb": "Nathallia.Proetti", "loginFec": "Pedro.Oliveira", "grupo": "DAC - N2", "grupoTags": ["DAC - N2"], "eps": "DAC", "slaH": 0.37}, {"date": "2026-10-02", "chamado": "INC-408635", "codEvento": 106166, "desc": "Ligações mudas.Impactando Pré + CTR N1: 68 PA’S – 100% / PÓS PAGO N1: 115 PA’S – 100% / RET CTR: 57 PA’S – 100% / RET PÓS: 43 PA’S – 100%Impacto confirmado pela operação.", "impacto": null, "inicio": "2026-10-02T15:59:00", "fim": "2026-10-02T16:40:00", "tipoEvento": "NICE", "status": "Fechado", "loginAb": "Nathallia.Proetti", "loginFec": "Pedro.Oliveira", "grupo": "Alm - PRE CONTROLE N1, Alm - RET PÓS, Alm - RET CTRL, Alm - POS PAGO N1", "grupoTags": ["Alm - PRE CONTROLE N1", "Alm - RET PÓS", "Alm - RET CTRL", "Alm - POS PAGO N1"], "eps": "ALM", "slaH": 0.68}, {"date": "2026-10-02", "chamado": "INC-408566", "codEvento": 106165, "desc": "Estamos com ligações mudas e picotando, impactando o atendimento dos colaboradores, impactando 248 hc CRC/ 207 HC RET / 486 HC N1+PRE.Impacto confirmado pelo staff Felipe (GRUPO HFC/DTH)", "impacto": null, "inicio": "2026-10-02T16:20:00", "fim": "2026-10-02T17:00:00", "tipoEvento": "NICE", "status": "Fechado", "loginAb": "psantos", "loginFec": "Pedro.Oliveira", "grupo": "AEC - CRC CONTROLE, AEC - RET CONTROLE, AEC - N1 + PRE", "grupoTags": ["AEC - CRC CONTROLE", "AEC - RET CONTROLE", "AEC - N1 + PRE"], "eps": "AEC", "slaH": 0.67}, {"date": "2026-10-02", "chamado": "6017095", "codEvento": 106169, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Araçariguama, Paraibuna e Tremembé - SP", "impacto": null, "inicio": "2026-10-02T18:00:00", "fim": "2026-10-03T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Nathallia.Proetti", "loginFec": "Vinicius.Souza", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-02", "chamado": "6019860", "codEvento": 106170, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Quatis e Apiacá - RJ e ES", "impacto": null, "inicio": "2026-10-02T18:00:00", "fim": "2026-10-03T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Nathallia.Proetti", "loginFec": "Vinicius.Souza", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-02", "chamado": "6019265", "codEvento": 106171, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Arroio Grande, São José Do Norte e Eldorado Do Sul - RS", "impacto": null, "inicio": "2026-10-02T18:00:00", "fim": "2026-10-03T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Nathallia.Proetti", "loginFec": "Vinicius.Souza", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-02", "chamado": "6018620", "codEvento": 106172, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Rondon, Formosa Do Oeste e Itambaracá - PR", "impacto": null, "inicio": "2026-10-02T18:00:00", "fim": "2026-10-03T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Nathallia.Proetti", "loginFec": "Vinicius.Souza", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-02", "chamado": "6012445", "codEvento": 106173, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G, 4G e 5G - Várias Cidades - RR, PA e AM", "impacto": null, "inicio": "2026-10-02T18:00:00", "fim": "2026-10-03T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Nathallia.Proetti", "loginFec": "Vinicius.Souza", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-02", "chamado": "5981371", "codEvento": 106174, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Várias Cidades - MT, AC, MS, TO, GO e RO", "impacto": null, "inicio": "2026-10-02T18:00:00", "fim": "2026-10-03T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Nathallia.Proetti", "loginFec": "Vinicius.Souza", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-02", "chamado": "6020330", "codEvento": 106175, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 5G - Sabará - MG", "impacto": null, "inicio": "2026-10-02T18:00:00", "fim": "2026-10-03T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Nathallia.Proetti", "loginFec": "Vinicius.Souza", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-02", "chamado": "5995465", "codEvento": 106176, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Várias Cidades - BA", "impacto": null, "inicio": "2026-10-02T18:00:00", "fim": "2026-10-03T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Nathallia.Proetti", "loginFec": "Vinicius.Souza", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-02", "chamado": "PDST-2579319", "codEvento": 106295, "desc": "Atraso na entrega da OS.Impacto confirmado pela operação.", "impacto": 1.0, "inicio": "2026-10-02T19:58:00", "fim": "2026-10-02T20:20:00", "tipoEvento": "SFTP", "status": "Fechado", "loginAb": "Kamilly.Bomfim", "loginFec": "Kamilly.Bomfim", "grupo": "AEC - PORTABILIDADE", "grupoTags": ["AEC - PORTABILIDADE"], "eps": "AEC", "slaH": 0.37}, {"date": "2026-10-02", "chamado": "6021654", "codEvento": 106178, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Cavalcante - GO (CN: 62)", "impacto": null, "inicio": "2026-10-02T22:07:00", "fim": "2026-10-03T09:26:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Vinicius.Souza", "loginFec": "Vinicius.Souza", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 11.32}, {"date": "2026-10-03", "chamado": "6021948", "codEvento": 106181, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Barão de Monte Alto - MG (CN: 32)", "impacto": null, "inicio": "2026-10-03T01:42:00", "fim": "2026-10-03T11:24:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Vinicius.Souza", "loginFec": "Vinicius.Souza", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 9.7}, {"date": "2026-10-03", "chamado": "6021979", "codEvento": 106182, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Rio das Flores - RJ (CN: 24)", "impacto": null, "inicio": "2026-10-03T02:07:00", "fim": "2026-10-03T08:37:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Vinicius.Souza", "loginFec": "Vinicius.Souza", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 6.5}, {"date": "2026-10-03", "chamado": "616635/2026", "codEvento": 106177, "desc": "Evento Backbone IP Atlanta-Miami-Nova Yorque - Queda de 1 x 100G entre BHE e MIANAP, 2 x 10G entre BHE e MIANAP, 4 x 10G entre BHE e ATL, 4 x 10G entre BSA e ATL, 1 x 100G entre BSA e MIANAP, 7 x 10G entre BSASN e NYK, 6 x 10G entre BSASN e ATL, 1 x 100G entre BSASN e MIANAP, 4 x 10G entre CAS e ATL, 4 x 10G entre CASQB e ATL, 4 x 10G entre CEM e ATL, 4 x 10G entre SDR e NYK, 4 x 10G entre SDRIT e NYK, afetando em 13.49% a capacidade do Backbone-IP Internacional", "impacto": null, "inicio": "2026-10-03T02:12:00", "fim": "2026-10-03T14:14:00", "tipoEvento": "REDE FIXA", "status": "Fechado", "loginAb": "Paulo.Vilaruel", "loginFec": "Vinicius.Souza", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 12.03}, {"date": "2026-10-03", "chamado": "6022048", "codEvento": 106179, "desc": "Degradação de alguns serviços do Residencial Itajubá - Degradação do trafego", "impacto": null, "inicio": "2026-10-03T02:16:00", "fim": "2026-10-03T04:41:00", "tipoEvento": "REDE VIRTUA", "status": "Fechado", "loginAb": "Paulo.Vilaruel", "loginFec": "Vinicius.Souza", "grupo": "DAC - N3", "grupoTags": ["DAC - N3"], "eps": "DAC", "slaH": 2.42}, {"date": "2026-10-03", "chamado": "6022283", "codEvento": 106192, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Abaeté - MG (CN: 37)", "impacto": null, "inicio": "2026-10-03T04:45:00", "fim": "2026-10-03T13:09:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Paulo.Vilaruel", "loginFec": "Ian.Carreon", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 8.4}, {"date": "2026-10-03", "chamado": "6021102", "codEvento": 106183, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Várias Cidades - SP", "impacto": null, "inicio": "2026-10-03T08:00:00", "fim": "2026-10-03T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Vinicius.Souza", "loginFec": "Petherson.Fagundes", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-03", "chamado": "6019860", "codEvento": 106184, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 3G e 4G - Quatis e Vassouras - RJ", "impacto": null, "inicio": "2026-10-03T08:00:00", "fim": "2026-10-03T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Vinicius.Souza", "loginFec": "Petherson.Fagundes", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-03", "chamado": "6019730", "codEvento": 106185, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 3G - São José Do Norte - RS - Inicio", "impacto": null, "inicio": "2026-10-03T08:00:00", "fim": "2026-10-03T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Vinicius.Souza", "loginFec": "Petherson.Fagundes", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-03", "chamado": "6012445", "codEvento": 106186, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G, 4G e 5G - Várias Cidades - RR, AM e PA", "impacto": null, "inicio": "2026-10-03T08:00:00", "fim": "2026-10-03T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Vinicius.Souza", "loginFec": "Petherson.Fagundes", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-03", "chamado": "6022406", "codEvento": 106187, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 3G - Tibau - RN", "impacto": null, "inicio": "2026-10-03T08:00:00", "fim": "2026-10-03T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Vinicius.Souza", "loginFec": "Petherson.Fagundes", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-03", "chamado": "5981371", "codEvento": 106188, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Várias Cidades - MT, TO e GO", "impacto": null, "inicio": "2026-10-03T08:00:00", "fim": "2026-10-03T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Vinicius.Souza", "loginFec": "Petherson.Fagundes", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-03", "chamado": "6022283", "codEvento": 106189, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Abaeté - MG", "impacto": null, "inicio": "2026-10-03T08:00:00", "fim": "2026-10-03T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Vinicius.Souza", "loginFec": "Petherson.Fagundes", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-03", "chamado": "5995465", "codEvento": 106190, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Várias Cidades - BA", "impacto": null, "inicio": "2026-10-03T08:00:00", "fim": "2026-10-03T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Vinicius.Souza", "loginFec": "Petherson.Fagundes", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-03", "chamado": "INC-409299", "codEvento": 106193, "desc": "Erro de renovação do prezão.Impactando 148HC / 100% PAs.Impato confirmado pelo Staff Guilherme.", "impacto": 0.8, "inicio": "2026-10-03T09:54:00", "fim": "2026-10-04T10:25:00", "tipoEvento": "WPP", "status": "Fechado", "loginAb": "Vinicius.Souza", "loginFec": "Andre.ticona", "grupo": "AEC - N1 + PRE", "grupoTags": ["AEC - N1 + PRE"], "eps": "AEC", "slaH": 24.52}, {"date": "2026-10-03", "chamado": "6024351", "codEvento": 106202, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Passabém - MG (CN: 31)", "impacto": null, "inicio": "2026-10-03T16:28:00", "fim": "2026-10-04T09:45:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Fabio.Trindade", "loginFec": "Ian.Carreon", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 17.28}, {"date": "2026-10-03", "chamado": "6022081", "codEvento": 106197, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G, 4G e 5G - Várias Cidades - AM e PA", "impacto": null, "inicio": "2026-10-03T18:00:00", "fim": "2026-10-04T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Petherson.Fagundes", "loginFec": "Paulo.Vilaruel", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-03", "chamado": "6024226", "codEvento": 106198, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Araripina - PE", "impacto": null, "inicio": "2026-10-03T18:00:00", "fim": "2026-10-04T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Petherson.Fagundes", "loginFec": "Paulo.Vilaruel", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-03", "chamado": "5981371", "codEvento": 106199, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Brasnorte, Juscimeira e Cassilândia - MT e MS", "impacto": null, "inicio": "2026-10-03T18:00:00", "fim": "2026-10-04T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Petherson.Fagundes", "loginFec": "Paulo.Vilaruel", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-03", "chamado": "5995465", "codEvento": 106200, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Brejões, Nazaré, Cairu, Mascote e Canápolis - BA", "impacto": null, "inicio": "2026-10-03T18:00:00", "fim": "2026-10-04T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Petherson.Fagundes", "loginFec": "Paulo.Vilaruel", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-03", "chamado": "6021102", "codEvento": 106194, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Várias Cidades - SP", "impacto": null, "inicio": "2026-10-03T18:00:00", "fim": "2026-10-04T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Petherson.Fagundes", "loginFec": "Paulo.Vilaruel", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-03", "chamado": "6024244", "codEvento": 106195, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 3G e 4G - Casimiro De Abreu - RJ", "impacto": null, "inicio": "2026-10-03T18:00:00", "fim": "2026-10-04T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Petherson.Fagundes", "loginFec": "Paulo.Vilaruel", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-03", "chamado": "6019730", "codEvento": 106196, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 3G - São José Do Norte - RS", "impacto": null, "inicio": "2026-10-03T18:00:00", "fim": "2026-10-04T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Petherson.Fagundes", "loginFec": "Paulo.Vilaruel", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-03", "chamado": "5998421", "codEvento": 106201, "desc": "Degradação de alguns serviços do Residencial Nova Friburgo - Degradação no tráfego devido queda de links IPRAN 5x10G e saturação de link remanescente 1x10G", "impacto": null, "inicio": "2026-10-03T19:21:00", "fim": "2026-10-03T21:10:00", "tipoEvento": "REDE VIRTUA", "status": "Fechado", "loginAb": "Pedro.Oliveira", "loginFec": "Vinicius.Souza", "grupo": "DAC - N3", "grupoTags": ["DAC - N3"], "eps": "DAC", "slaH": 1.82}, {"date": "2026-10-03", "chamado": "6177732026", "codEvento": 106203, "desc": "Interrupção da Rede de Voz de Erechim - Perda de comunicação do UMG NGN Huawei de Erechim. Queda de 2x 10M entre ER UMG SSB e o SX PAE BV. Clientes corporativos: 4", "impacto": null, "inicio": "2026-10-03T23:31:00", "fim": "2026-10-04T10:35:00", "tipoEvento": "REDE VOZ FIXA", "status": "Fechado", "loginAb": "Vinicius.Souza", "loginFec": "Ian.Carreon", "grupo": "DAC - N3", "grupoTags": ["DAC - N3"], "eps": "DAC", "slaH": 11.07}, {"date": "2026-10-04", "chamado": "6025904", "codEvento": 106207, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Constantina - RS (CN: 54)", "impacto": null, "inicio": "2026-10-04T00:07:00", "fim": "2026-10-04T14:40:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Paulo.Vilaruel", "loginFec": "Fabio.Trindade", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 14.55}, {"date": "2026-10-04", "chamado": "6026490", "codEvento": 106209, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Várias Cidades - PR (CN: 42, 43, 44, 45, 46)", "impacto": null, "inicio": "2026-10-04T00:12:00", "fim": "2026-10-05T01:29:53", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Vinicius.Souza", "loginFec": "Gustavo.Porfírio", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 25.3}, {"date": "2026-10-04", "chamado": "6026218", "codEvento": 106206, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: São José do Rio Preto - SP (CN: 17)", "impacto": null, "inicio": "2026-10-04T01:47:00", "fim": "2026-10-04T08:41:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Vinicius.Souza", "loginFec": "Vinicius.Souza", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 6.9}, {"date": "2026-10-04", "chamado": "6026322", "codEvento": 106208, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Curitibanos e Frei Rogério - SC (CN: 49)", "impacto": null, "inicio": "2026-10-04T02:51:00", "fim": "2026-10-04T06:40:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Ian.Carreon", "loginFec": "Ian.Carreon", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 3.82}, {"date": "2026-10-04", "chamado": "6026218", "codEvento": 106246, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: São José do Rio Preto - SP (CN: 17)", "impacto": null, "inicio": "2026-10-04T03:47:00", "fim": "2026-10-04T08:41:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Vinicius.Souza", "loginFec": "Vinicius.Souza", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 4.9}, {"date": "2026-10-04", "chamado": "6026468", "codEvento": 106217, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Várias Cidades - PR (CN: 45)", "impacto": null, "inicio": "2026-10-04T03:52:00", "fim": "2026-10-04T03:53:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Vinicius.Souza", "loginFec": "Vinicius.Souza", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 0.02}, {"date": "2026-10-04", "chamado": "6026698", "codEvento": 106247, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Pato Branco, Palmas, São João e Clevelândia - PR (CN: 46)", "impacto": null, "inicio": "2026-10-04T03:57:00", "fim": "2026-10-04T10:09:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Vinicius.Souza", "loginFec": "Vinicius.Souza", "grupo": "DAC - N3", "grupoTags": ["DAC - N3"], "eps": "DAC", "slaH": 6.2}, {"date": "2026-10-04", "chamado": "6026713", "codEvento": 106205, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Ponta Porã - MS (CN: 67)", "impacto": null, "inicio": "2026-10-04T04:46:00", "fim": "2026-10-04T07:46:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Vinicius.Souza", "loginFec": "Vinicius.Souza", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 3.0}, {"date": "2026-10-04", "chamado": "14536440", "codEvento": 106204, "desc": "Degradação de alguns serviços do Residencial Ponta Porã - DEGRADAÇÃO NO TRÁFEGO", "impacto": null, "inicio": "2026-10-04T05:37:00", "fim": "2026-10-04T08:02:00", "tipoEvento": "REDE VIRTUA", "status": "Fechado", "loginAb": "Vinicius.Souza", "loginFec": "Fabio.Trindade", "grupo": "DAC - N2", "grupoTags": ["DAC - N2"], "eps": "DAC", "slaH": 2.42}, {"date": "2026-10-04", "chamado": "6026783", "codEvento": 106213, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Feliz Natal - MT (CN: 66)", "impacto": null, "inicio": "2026-10-04T05:41:00", "fim": "2026-10-04T08:54:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Vinicius.Souza", "loginFec": "Ian.Carreon", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 3.22}, {"date": "2026-10-04", "chamado": "6026923", "codEvento": 106223, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Sete Quedas - MS (CN: 67)", "impacto": null, "inicio": "2026-10-04T06:29:00", "fim": "2026-10-04T10:45:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Ian.Carreon", "loginFec": "Pedro.Oliveira", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 4.27}, {"date": "2026-10-04", "chamado": "6027203", "codEvento": 106222, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Marabá Paulista - SP (CN: 18)", "impacto": null, "inicio": "2026-10-04T07:37:00", "fim": "2026-10-04T12:52:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Vinicius.Souza", "loginFec": "Fabio.Trindade", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 5.25}, {"date": "2026-10-04", "chamado": "6019730", "codEvento": 106214, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G, 4G e 5G - Várias Cidades - RS", "impacto": null, "inicio": "2026-10-04T08:00:00", "fim": "2026-10-04T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Paulo.Vilaruel", "loginFec": "Fabio.Trindade", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-04", "chamado": "5981371", "codEvento": 106210, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G, 4G e 5G - Várias Cidades - MT, MS e TO", "impacto": null, "inicio": "2026-10-04T08:00:00", "fim": "2026-10-04T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Paulo.Vilaruel", "loginFec": "Fabio.Trindade", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-04", "chamado": "6022452", "codEvento": 106211, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G, 4G e 5G - Várias Cidades - AM, PA, RR e MA", "impacto": null, "inicio": "2026-10-04T08:00:00", "fim": "2026-10-04T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Paulo.Vilaruel", "loginFec": "Fabio.Trindade", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-04", "chamado": "6024271", "codEvento": 106215, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Várias Cidades - SP", "impacto": null, "inicio": "2026-10-04T08:00:00", "fim": "2026-10-04T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Paulo.Vilaruel", "loginFec": "Fabio.Trindade", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-04", "chamado": "6025651", "codEvento": 106212, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Várias Cidades - PR", "impacto": null, "inicio": "2026-10-04T08:00:00", "fim": "2026-10-04T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Paulo.Vilaruel", "loginFec": "Fabio.Trindade", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-04", "chamado": "2338175", "codEvento": 106216, "desc": "Degradação de alguns serviços do Residencial PRESIDENTE PRUDENTE - Degradação no tráfego devio queda de cables", "impacto": null, "inicio": "2026-10-04T08:00:00", "fim": "2026-10-04T11:00:00", "tipoEvento": "REDE VIRTUA", "status": "Fechado", "loginAb": "Vinicius.Souza", "loginFec": "Fabio.Trindade", "grupo": "DAC - N2", "grupoTags": ["DAC - N2"], "eps": "DAC", "slaH": 3.0}, {"date": "2026-10-04", "chamado": "6027461", "codEvento": 106225, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Ouro Verde - SP (CN: 18)", "impacto": null, "inicio": "2026-10-04T08:37:00", "fim": "2026-10-04T08:38:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Vinicius.Souza", "loginFec": "Petherson.Fagundes", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 0.02}, {"date": "2026-10-04", "chamado": "6027388", "codEvento": 106227, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G, 4G e 5G: Presidente Prudente e Indiana - SP (CN: 18)", "impacto": null, "inicio": "2026-10-04T08:52:00", "fim": "2026-10-04T12:52:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Fabio.Trindade", "loginFec": "Fabio.Trindade", "grupo": "DAC - N2", "grupoTags": ["DAC - N2"], "eps": "DAC", "slaH": 4.0}, {"date": "2026-10-04", "chamado": "6021885", "codEvento": 106221, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Itapecerica da Serra - SP (CN: 11)", "impacto": null, "inicio": "2026-10-04T09:11:00", "fim": "2026-10-04T15:01:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Paulo.Vilaruel", "loginFec": "Fabio.Trindade", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 5.83}, {"date": "2026-10-04", "chamado": "618201", "codEvento": 106219, "desc": "Interrupção de Centro de Roteamento IP Erechim - Interrupção do centro de roteamento de Erechim , causando a perda de 100% da sua capacidade total.", "impacto": null, "inicio": "2026-10-04T09:48:00", "fim": "2026-10-04T11:01:00", "tipoEvento": "REDE FIXA", "status": "Fechado", "loginAb": "Paulo.Vilaruel", "loginFec": "Vinicius.Souza", "grupo": "DAC - N3", "grupoTags": ["DAC - N3"], "eps": "DAC", "slaH": 1.22}, {"date": "2026-10-04", "chamado": "2338569", "codEvento": 106220, "desc": "Interrupção de todos os serviços do Residencial Erechim - Interrupção do tráfego.", "impacto": null, "inicio": "2026-10-04T10:32:00", "fim": "2026-10-04T11:03:00", "tipoEvento": "REDE VIRTUA", "status": "Fechado", "loginAb": "Paulo.Vilaruel", "loginFec": "Ian.Carreon", "grupo": "DAC - N3", "grupoTags": ["DAC - N3"], "eps": "DAC", "slaH": 0.52}, {"date": "2026-10-04", "chamado": "6028330", "codEvento": 106224, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Varias cidades - SP (CN: 14, 18)", "impacto": null, "inicio": "2026-10-04T10:57:00", "fim": "2026-10-05T02:11:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Vinicius.Souza", "loginFec": "Fabio.Trindade", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 15.23}, {"date": "2026-10-04", "chamado": "6028930", "codEvento": 106226, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G, 4G e 5G: São José do Rio Preto - SP (CN: 17)", "impacto": null, "inicio": "2026-10-04T12:12:00", "fim": "2026-10-04T12:13:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Petherson.Fagundes", "loginFec": "Fabio.Trindade", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 0.02}, {"date": "2026-10-04", "chamado": "6032166", "codEvento": 106241, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Júlio Mesquita - SP (CN: 14)", "impacto": null, "inicio": "2026-10-04T12:53:00", "fim": "2026-10-05T02:06:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Paulo.Vilaruel", "loginFec": "Paulo.Vilaruel", "grupo": "DAC - N3", "grupoTags": ["DAC - N3"], "eps": "DAC", "slaH": 13.22}, {"date": "2026-10-04", "chamado": "6029169", "codEvento": 106228, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G, 4G e 5G: Araçatuba - SP (CN: 18)", "impacto": null, "inicio": "2026-10-04T13:01:00", "fim": "2026-10-04T13:02:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Petherson.Fagundes", "loginFec": "Pedro.Oliveira", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 0.02}, {"date": "2026-10-04", "chamado": "6029589", "codEvento": 106239, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Santa Cruz da Vitória - BA (CN: 73)", "impacto": null, "inicio": "2026-10-04T14:21:00", "fim": "2026-10-05T10:19:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Petherson.Fagundes", "loginFec": "Vinicius.Souza", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 19.97}, {"date": "2026-10-04", "chamado": "6029825", "codEvento": 106229, "desc": "Degradação de alguns serviços do Residencial MONTES CLAROS - QUEDA DE LINKS 2 X 10G ISOLANDO ROTEADOR MGMCL14-RMP01 E OLT MCLESPAAOLT01", "impacto": null, "inicio": "2026-10-04T14:36:00", "fim": "2026-10-04T22:52:00", "tipoEvento": "REDE VIRTUA", "status": "Fechado", "loginAb": "Fabio.Trindade", "loginFec": "Gustavo.Porfírio", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 8.27}, {"date": "2026-10-04", "chamado": "618559", "codEvento": 106240, "desc": "Dificuldade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Montes Claros - MG (CN: 38)", "impacto": null, "inicio": "2026-10-04T14:36:00", "fim": "2026-10-04T22:52:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Petherson.Fagundes", "loginFec": "Vinicius.Souza", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 8.27}, {"date": "2026-10-04", "chamado": "6186862026", "codEvento": 106238, "desc": "Interrupção da Rede de Voz de Piracicaba SP - Perda de comunicação com o media Gateway Huawei de Piracicaba SP", "impacto": null, "inicio": "2026-10-04T17:26:00", "fim": "2026-10-04T20:42:00", "tipoEvento": "REDE VOZ FIXA", "status": "Fechado", "loginAb": "Pedro.Oliveira", "loginFec": "Kamilly.Bomfim", "grupo": "DAC - N3", "grupoTags": ["DAC - N3"], "eps": "DAC", "slaH": 3.27}, {"date": "2026-10-04", "chamado": "5995465", "codEvento": 106230, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G, 4G e 5G - Várias Cidades - BA e SE", "impacto": null, "inicio": "2026-10-04T18:00:00", "fim": "2026-10-05T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Fabio.Trindade", "loginFec": "Kamilly.Bomfim", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-04", "chamado": "5981371", "codEvento": 106231, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Várias Cidades - MT, MS e GO", "impacto": null, "inicio": "2026-10-04T18:00:00", "fim": "2026-10-05T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Fabio.Trindade", "loginFec": "Kamilly.Bomfim", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-04", "chamado": "6026796", "codEvento": 106232, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 3G e 4G - Aratuba - CE", "impacto": null, "inicio": "2026-10-04T18:00:00", "fim": "2026-10-05T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Fabio.Trindade", "loginFec": "Kamilly.Bomfim", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-04", "chamado": "6025352", "codEvento": 106233, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G, 4G e 5G - Abaetetuba, Presidente Figueiredo, Colinas e Urucará - PA, AM e MA", "impacto": null, "inicio": "2026-10-04T18:00:00", "fim": "2026-10-05T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Fabio.Trindade", "loginFec": "Kamilly.Bomfim", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-04", "chamado": "6026793", "codEvento": 106234, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Várias Cidades - PR e SC", "impacto": null, "inicio": "2026-10-04T18:00:00", "fim": "2026-10-05T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Fabio.Trindade", "loginFec": "Kamilly.Bomfim", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-04", "chamado": "6024531", "codEvento": 106235, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Várias Cidades - RS", "impacto": null, "inicio": "2026-10-04T18:00:00", "fim": "2026-10-05T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Fabio.Trindade", "loginFec": "Kamilly.Bomfim", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-04", "chamado": "6029239", "codEvento": 106236, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G - Engenheiro Paulo De Frontin - RJ", "impacto": null, "inicio": "2026-10-04T18:00:00", "fim": "2026-10-05T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Fabio.Trindade", "loginFec": "Kamilly.Bomfim", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-04", "chamado": "6027654", "codEvento": 106237, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G, 4G e 5G - Várias Cidades - SP", "impacto": null, "inicio": "2026-10-04T18:00:00", "fim": "2026-10-05T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Fabio.Trindade", "loginFec": "Kamilly.Bomfim", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-05", "chamado": "6032142", "codEvento": 106242, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Bilac, Clementina e Santópolis do Aguapeí - SP (CN: 18)", "impacto": null, "inicio": "2026-10-05T00:12:00", "fim": "2026-10-05T00:34:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Vinicius.Souza", "loginFec": "Vinicius.Souza", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 0.37}, {"date": "2026-10-05", "chamado": "6032520", "codEvento": 106244, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Salvaterra e Soure - PA (CN: 91)", "impacto": null, "inicio": "2026-10-05T02:11:00", "fim": "2026-10-05T09:24:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Kamilly.Bomfim", "loginFec": "Kamilly.Bomfim", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 7.22}, {"date": "2026-10-05", "chamado": "6031488", "codEvento": 106290, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Planaltina - GO  (CN: 61)", "impacto": null, "inicio": "2026-10-05T02:21:00", "fim": "2026-10-05T03:20:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Kamilly.Bomfim", "loginFec": "Kamilly.Bomfim", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 0.98}, {"date": "2026-10-05", "chamado": "6033146", "codEvento": 106245, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Bilac, Clementina e Santópolis do Aguapeí - SP (CN: 18)", "impacto": null, "inicio": "2026-10-05T05:47:00", "fim": "2026-10-05T07:05:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Vinicius.Souza", "loginFec": "Vinicius.Souza", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 1.3}, {"date": "2026-10-05", "chamado": "14536635", "codEvento": 106243, "desc": "Degradação de alguns serviços do Residencial Várzea Paulista - Queda de terminais", "impacto": null, "inicio": "2026-10-05T06:17:00", "fim": "2026-10-05T16:30:00", "tipoEvento": "REDE VIRTUA", "status": "Fechado", "loginAb": "Gustavo.Porfírio", "loginFec": "psantos", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 10.22}, {"date": "2026-10-05", "chamado": "6033326", "codEvento": 106248, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Várias Cidades - SP", "impacto": null, "inicio": "2026-10-05T08:00:00", "fim": "2026-10-05T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Kamilly.Bomfim", "loginFec": "Nathallia.Proetti", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-05", "chamado": "6024853", "codEvento": 106249, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G e 4G - Várias Cidades - RS", "impacto": null, "inicio": "2026-10-05T08:00:00", "fim": "2026-10-05T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Kamilly.Bomfim", "loginFec": "Nathallia.Proetti", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-05", "chamado": "6025907", "codEvento": 106250, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G, 4G e 5G - Várias Cidades - PR e SC", "impacto": null, "inicio": "2026-10-05T08:00:00", "fim": "2026-10-05T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Kamilly.Bomfim", "loginFec": "Nathallia.Proetti", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-05", "chamado": "6025352", "codEvento": 106251, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Várias Cidades - PA, MA, AM e RR", "impacto": null, "inicio": "2026-10-05T08:00:00", "fim": "2026-10-05T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Kamilly.Bomfim", "loginFec": "Nathallia.Proetti", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-05", "chamado": "6030151", "codEvento": 106252, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Araripina, Aratuba e Picos - PE, CE e PI", "impacto": null, "inicio": "2026-10-05T08:00:00", "fim": "2026-10-05T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Kamilly.Bomfim", "loginFec": "Nathallia.Proetti", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-05", "chamado": "5981371", "codEvento": 106253, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G, 4G e 5G - Várias Cidades - MT, MS, GO e TO", "impacto": null, "inicio": "2026-10-05T08:00:00", "fim": "2026-10-05T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Kamilly.Bomfim", "loginFec": "Nathallia.Proetti", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-05", "chamado": "6032104", "codEvento": 106254, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Perdigão, Leandro Ferreira, Nova Serrana, São José Da Varginha e Santana Do Jacaré - MG", "impacto": null, "inicio": "2026-10-05T08:00:00", "fim": "2026-10-05T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Kamilly.Bomfim", "loginFec": "Nathallia.Proetti", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-05", "chamado": "5995465", "codEvento": 106255, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Várias Cidades - BA", "impacto": null, "inicio": "2026-10-05T08:00:00", "fim": "2026-10-05T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Kamilly.Bomfim", "loginFec": "Nathallia.Proetti", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-05", "chamado": "INC-411112", "codEvento": 106257, "desc": "Lentidão na ferramenta, impactando CRC - 127HC - 100% / N1+PRÉ - 232HC - 100% / RET - 85HC - 100%, impacto confirmado pelo Staff Douglas", "impacto": null, "inicio": "2026-10-05T10:45:00", "fim": "2026-10-05T11:30:00", "tipoEvento": "SOLAR", "status": "Fechado", "loginAb": "vanuza.rodrigues", "loginFec": "lucas.alves", "grupo": "AEC - RETENÇÃO CONTROLE, AEC - CRC, AEC - N1 + PRE", "grupoTags": ["AEC - RETENÇÃO CONTROLE", "AEC - CRC", "AEC - N1 + PRE"], "eps": "AEC", "slaH": 0.75}, {"date": "2026-10-05", "chamado": "INC-411145", "codEvento": 106256, "desc": "Lentidão na ferramenta, impactando 100PA's/ 100%, impacto confirmado pelo Staff Daniel.", "impacto": null, "inicio": "2026-10-05T10:56:00", "fim": "2026-10-05T11:42:00", "tipoEvento": "SOLAR", "status": "Fechado", "loginAb": "vanuza.rodrigues", "loginFec": "vanuza.rodrigues", "grupo": "Alm - CLARO CONTROLE S2S, Alm - RET PÓS, Alm - PÓS N1, Alm -  PRÉ + CONTROLE", "grupoTags": ["Alm - CLARO CONTROLE S2S", "Alm - RET PÓS", "Alm - PÓS N1", "Alm -  PRÉ + CONTROLE"], "eps": "ALM", "slaH": 0.77}, {"date": "2026-10-05", "chamado": "7743447", "codEvento": 106258, "desc": "Oscilação na rede almaviva.Impactando 100 PAs - 100%Impacto confirmado pelo Staff Daniel Carvalho", "impacto": 1.0, "inicio": "2026-10-05T11:00:00", "fim": "2026-10-05T11:43:00", "tipoEvento": "REDE", "status": "Fechado", "loginAb": "Kamilly.Bomfim", "loginFec": "Kamilly.Bomfim", "grupo": "Alm - PRE + CONTROLE PROPENSOS, Alm - RET PÓS, Alm - RET CONTROLE, Alm - CLARO S2S, Alm - CLARO POS N1", "grupoTags": ["Alm - PRE + CONTROLE PROPENSOS", "Alm - RET PÓS", "Alm - RET CONTROLE", "Alm - CLARO S2S", "Alm - CLARO POS N1"], "eps": "ALM", "slaH": 0.72}, {"date": "2026-10-05", "chamado": "6033640", "codEvento": 106259, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Vitória da Conquista - BA (CN: 77)", "impacto": null, "inicio": "2026-10-05T11:28:00", "fim": "2026-10-05T14:15:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Kamilly.Bomfim", "loginFec": "Kamilly.Bomfim", "grupo": "DAC - N2", "grupoTags": ["DAC - N2"], "eps": "DAC", "slaH": 2.78}, {"date": "2026-10-05", "chamado": "6035401", "codEvento": 106264, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Várias Cidades - SE (CN: 79)", "impacto": null, "inicio": "2026-10-05T12:06:00", "fim": "2026-10-05T18:02:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "psantos", "loginFec": "Nathallia.Proetti", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 5.93}, {"date": "2026-10-05", "chamado": "6035421", "codEvento": 106292, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Rio de Janeiro  (CN: 21)", "impacto": null, "inicio": "2026-10-05T12:17:00", "fim": "2026-10-05T12:56:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Kamilly.Bomfim", "loginFec": "Kamilly.Bomfim", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 0.65}, {"date": "2026-10-05", "chamado": "INC-411380", "codEvento": 106260, "desc": "Direcionamento de Ligações Combo MultiImpactando PÓS PAGO N1 80 PA's - 90% e PRÉ + CTR 126 PA's - 100%Impacto confirmado pelo Staff Gabriel.", "impacto": 0.8, "inicio": "2026-10-05T12:18:00", "fim": "2026-10-05T19:43:00", "tipoEvento": "NICE", "status": "Fechado", "loginAb": "Gustavo.Porfírio", "loginFec": "psantos", "grupo": "Alm - PRE+ CONTROLE, Alm - CLARO POS N1", "grupoTags": ["Alm - PRE+ CONTROLE", "Alm - CLARO POS N1"], "eps": "ALM", "slaH": 7.42}, {"date": "2026-10-05", "chamado": "6203712026", "codEvento": 106261, "desc": "Interrupção de Centro de Roteamento IP Guarapuava - queda de 1X100G entre Guarapuava e Curitiba, em concomitância de eventos anteriores, causando perda de 100% da sua capacidade Total.", "impacto": null, "inicio": "2026-10-05T13:50:00", "fim": "2026-10-05T14:35:00", "tipoEvento": "REDE FIXA", "status": "Fechado", "loginAb": "Kamilly.Bomfim", "loginFec": "psantos", "grupo": "DAC - N3", "grupoTags": ["DAC - N3"], "eps": "DAC", "slaH": 0.75}, {"date": "2026-10-05", "chamado": "620371", "codEvento": 106262, "desc": "Interrupção de todos os serviços do Residencial Guarapuava - Interrupção do tráfego. Queda de links backbone.", "impacto": null, "inicio": "2026-10-05T13:52:00", "fim": "2026-10-05T14:34:00", "tipoEvento": "REDE VIRTUA", "status": "Fechado", "loginAb": "Kamilly.Bomfim", "loginFec": "psantos", "grupo": "DAC - N3", "grupoTags": ["DAC - N3"], "eps": "DAC", "slaH": 0.7}, {"date": "2026-10-05", "chamado": "6036177", "codEvento": 106263, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Várias Cidades - MA e PA (CN: 94, 98, 99)", "impacto": null, "inicio": "2026-10-05T14:06:00", "fim": "2026-10-05T18:35:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Fabio.Trindade", "loginFec": "Fabio.Trindade", "grupo": "DAC - N3", "grupoTags": ["DAC - N3"], "eps": "DAC", "slaH": 4.48}, {"date": "2026-10-05", "chamado": "2344373", "codEvento": 106273, "desc": "Degradação de alguns serviços do Residencial CAÇAPAVA - DEGRADAÇÃO NO TRÁFEGO DEVIDO QUEDA DE CABLES", "impacto": null, "inicio": "2026-10-05T16:30:00", "fim": "2026-10-05T20:35:00", "tipoEvento": "REDE VIRTUA", "status": "Fechado", "loginAb": "psantos", "loginFec": "Nathallia.Proetti", "grupo": "DAC - N2", "grupoTags": ["DAC - N2"], "eps": "DAC", "slaH": 4.08}, {"date": "2026-10-05", "chamado": "PDST-2580235", "codEvento": 106269, "desc": "Atraso Na Entrega Da Os. Impacto informado pela operação.", "impacto": 1.0, "inicio": "2026-10-05T16:55:00", "fim": null, "tipoEvento": "SFTP", "status": "Aberto", "loginAb": "Fabio.Trindade", "loginFec": null, "grupo": "AEC - PORTABILIDADE", "grupoTags": ["AEC - PORTABILIDADE"], "eps": "AEC", "slaH": null}, {"date": "2026-10-05", "chamado": "620137", "codEvento": 106274, "desc": "Degradação de Centro de Roteamento IP Internacional - Instabilidades de 3 x 10G entre Campinas e Atlanta, 1 x 100G entre Curitiba e Atlanta, 2 x 10G entre Campinas e Nova York, 1 x 10G entre CASQBIT e Nova York, 1 x 10G entre Curitiba e Nova York, afetando em 9% a capacidade total do Backbone-IP Internacional, devido a concomitância de eventos.", "impacto": null, "inicio": "2026-10-05T16:57:00", "fim": "2026-10-05T20:30:00", "tipoEvento": "REDE FIXA", "status": "Fechado", "loginAb": "Nathallia.Proetti", "loginFec": "Fabio.Trindade", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 3.55}, {"date": "2026-10-05", "chamado": "6036968", "codEvento": 106265, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Várias Cidades - SP", "impacto": null, "inicio": "2026-10-05T18:00:00", "fim": "2026-10-06T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Nathallia.Proetti", "loginFec": "Kamilly.Bomfim", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-05", "chamado": "6036589", "codEvento": 106266, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G, 4G e 5G - Barão Do Triunfo, Esteio e São José Do Ouro - RS", "impacto": null, "inicio": "2026-10-05T18:00:00", "fim": "2026-10-06T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Nathallia.Proetti", "loginFec": "Kamilly.Bomfim", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-05", "chamado": "6025907", "codEvento": 106267, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Várias Cidades - PR", "impacto": null, "inicio": "2026-10-05T18:00:00", "fim": "2026-10-06T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Nathallia.Proetti", "loginFec": "Kamilly.Bomfim", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-05", "chamado": "6034495", "codEvento": 106268, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G, 4G e 5G - Várias Cidades - AM, PA e MA", "impacto": null, "inicio": "2026-10-05T18:00:00", "fim": "2026-10-06T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Nathallia.Proetti", "loginFec": "Kamilly.Bomfim", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-05", "chamado": "6036047", "codEvento": 106270, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G e 4G - São Miguel Dos Milagres - AL", "impacto": null, "inicio": "2026-10-05T18:00:00", "fim": "2026-10-06T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Nathallia.Proetti", "loginFec": "Kamilly.Bomfim", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-05", "chamado": "5981371", "codEvento": 106271, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Várias Cidades - MT, MS e GO", "impacto": null, "inicio": "2026-10-05T18:00:00", "fim": "2026-10-06T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Nathallia.Proetti", "loginFec": "Kamilly.Bomfim", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-05", "chamado": "5995465", "codEvento": 106272, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Várias Cidades - BA e SE", "impacto": null, "inicio": "2026-10-05T18:00:00", "fim": "2026-10-06T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Nathallia.Proetti", "loginFec": "Kamilly.Bomfim", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-05", "chamado": "6037598", "codEvento": 106276, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Japeri - RJ (CN: 21)", "impacto": null, "inicio": "2026-10-05T18:25:00", "fim": "2026-10-05T21:30:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Fabio.Trindade", "loginFec": "Fabio.Trindade", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 3.08}, {"date": "2026-10-05", "chamado": "9452", "codEvento": 106275, "desc": "Relatório não atualizou em D-2. Impacto confirmado pela operação", "impacto": null, "inicio": "2026-10-05T18:54:00", "fim": null, "tipoEvento": "NEOMANAGER", "status": "Aberto", "loginAb": "Fabio.Trindade", "loginFec": null, "grupo": "AEC - Claro retenção ativo", "grupoTags": ["AEC - Claro retenção ativo"], "eps": "AEC", "slaH": null}, {"date": "2026-10-05", "chamado": "6038335", "codEvento": 106277, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: São Geraldo, Carmo de Minas e Bom Jesus do Amparo - MG (CN: 31, 32, 35)", "impacto": null, "inicio": "2026-10-05T23:36:00", "fim": "2026-10-06T01:55:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Ian.Carreon", "loginFec": "Ian.Carreon", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 2.32}, {"date": "2026-10-06", "chamado": "6038624", "codEvento": 106279, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Osvaldo Cruz e Sagres - SP (CN: 18)", "impacto": null, "inicio": "2026-10-06T00:24:00", "fim": "2026-10-06T08:59:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Gustavo.Porfírio", "loginFec": "Ian.Carreon", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 8.58}, {"date": "2026-10-06", "chamado": "6038642", "codEvento": 106278, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Gaúcha do Norte - MT (CN: 66)", "impacto": null, "inicio": "2026-10-06T00:39:00", "fim": "2026-10-06T14:37:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Ian.Carreon", "loginFec": "psantos", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 13.97}, {"date": "2026-10-06", "chamado": "6035869", "codEvento": 106280, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Nacional - NACIONAL (CN: 1X, 2X, 3X, 4X, 5X, 6X, 7X, 8X, 9X)", "impacto": null, "inicio": "2026-10-06T03:40:00", "fim": "2026-10-06T06:30:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Kamilly.Bomfim", "loginFec": "Kamilly.Bomfim", "grupo": "DAC - N3", "grupoTags": ["DAC - N3"], "eps": "DAC", "slaH": 2.83}, {"date": "2026-10-06", "chamado": "6034808", "codEvento": 106281, "desc": "Dificuldade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Nacional - NACIONAL (CN: 1X, 2X, 3X, 4X, 5X, 6X, 7X, 8X, 9X)", "impacto": null, "inicio": "2026-10-06T04:50:00", "fim": "2026-10-06T07:00:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Vinicius.Souza", "loginFec": "Nathallia.Proetti", "grupo": "DAC - N3", "grupoTags": ["DAC - N3"], "eps": "DAC", "slaH": 2.17}, {"date": "2026-10-06", "chamado": "INC-413008", "codEvento": 106289, "desc": "Erro de direcionamento.Impactando 80 PA's / 50%.Impacto confirmado pela operação.", "impacto": 0.5, "inicio": "2026-10-06T07:35:00", "fim": "2026-10-06T09:52:46", "tipoEvento": "NICE", "status": "Fechado", "loginAb": "Gustavo.Porfírio", "loginFec": "Gustavo.Porfírio", "grupo": "Alm - PÓS N1", "grupoTags": ["Alm - PÓS N1"], "eps": "ALM", "slaH": 2.3}, {"date": "2026-10-06", "chamado": "9454", "codEvento": 106291, "desc": "Disponibilização da base do dia 05/10Impacto confirmado pela operação", "impacto": null, "inicio": "2026-10-06T07:48:00", "fim": null, "tipoEvento": "NEOMANAGER", "status": "Aberto", "loginAb": "Gustavo.Porfírio", "loginFec": null, "grupo": "AEC - N1, AEC - RETENÇÃO, AEC - Controle", "grupoTags": ["AEC - N1", "AEC - RETENÇÃO", "AEC - Controle"], "eps": "AEC", "slaH": null}, {"date": "2026-10-06", "chamado": "5891393", "codEvento": 106282, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Várias Cidades - SP", "impacto": null, "inicio": "2026-10-06T08:00:00", "fim": "2026-10-06T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Gustavo.Porfírio", "loginFec": "Petherson.Fagundes", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-06", "chamado": "6036957", "codEvento": 106283, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 3G e 5G - Esteio, Erechim e Jacutinga - RS", "impacto": null, "inicio": "2026-10-06T08:00:00", "fim": "2026-10-06T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Gustavo.Porfírio", "loginFec": "Petherson.Fagundes", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-06", "chamado": "6025907", "codEvento": 106284, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G, 4G e 5G - Várias Cidades - PR e RS", "impacto": null, "inicio": "2026-10-06T08:00:00", "fim": "2026-10-06T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Gustavo.Porfírio", "loginFec": "Petherson.Fagundes", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-06", "chamado": "6037858", "codEvento": 106285, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G, 4G e 5G - Várias Cidades - AM, PA e MA", "impacto": null, "inicio": "2026-10-06T08:00:00", "fim": "2026-10-06T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Gustavo.Porfírio", "loginFec": "Petherson.Fagundes", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-06", "chamado": "6039112", "codEvento": 106286, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Campo Alegre Do Fidalgo e São Raimundo Nonato - PI", "impacto": null, "inicio": "2026-10-06T08:00:00", "fim": "2026-10-06T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Gustavo.Porfírio", "loginFec": "Petherson.Fagundes", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-06", "chamado": "6036184", "codEvento": 106287, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Várias Cidades - MT, MS e GO", "impacto": null, "inicio": "2026-10-06T08:00:00", "fim": "2026-10-06T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Gustavo.Porfírio", "loginFec": "Petherson.Fagundes", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-06", "chamado": "5995465", "codEvento": 106288, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Brejões, Nazaré, Carinhanha, Mascote e Tucano - BA", "impacto": null, "inicio": "2026-10-06T08:00:00", "fim": "2026-10-06T18:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Gustavo.Porfírio", "loginFec": "Petherson.Fagundes", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 10.0}, {"date": "2026-10-06", "chamado": "14537187", "codEvento": 106294, "desc": "Degradação de alguns serviços do Residencial MOCOCA - DEGRADAÇÃO DO TRÁFEGO DEVIDO QUEDA DE ONTS", "impacto": null, "inicio": "2026-10-06T08:09:00", "fim": "2026-10-06T17:00:00", "tipoEvento": "REDE VIRTUA", "status": "Fechado", "loginAb": "Ian.Carreon", "loginFec": "Petherson.Fagundes", "grupo": "DAC - N2", "grupoTags": ["DAC - N2"], "eps": "DAC", "slaH": 8.85}, {"date": "2026-10-06", "chamado": "14537191", "codEvento": 106296, "desc": "Degradação de alguns serviços do Residencial Ponta Pora - Queda no tráfego devida queda de modems", "impacto": null, "inicio": "2026-10-06T08:15:00", "fim": "2026-10-06T09:40:00", "tipoEvento": "REDE VIRTUA", "status": "Fechado", "loginAb": "Kamilly.Bomfim", "loginFec": "Kamilly.Bomfim", "grupo": "DAC - N2", "grupoTags": ["DAC - N2"], "eps": "DAC", "slaH": 1.42}, {"date": "2026-10-06", "chamado": "9455", "codEvento": 106293, "desc": "Relatório Inconsistente.Impactando 4PA's / 100%.Impacto confirmado pela operação.", "impacto": 1.0, "inicio": "2026-10-06T08:24:00", "fim": null, "tipoEvento": "PUGMIL", "status": "Aberto", "loginAb": "Gustavo.Porfírio", "loginFec": null, "grupo": "Tel - MIS", "grupoTags": ["Tel - MIS"], "eps": "TEL", "slaH": null}, {"date": "2026-10-06", "chamado": "6040347", "codEvento": 106297, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Várias Cidades - PA (CN: 94)", "impacto": null, "inicio": "2026-10-06T09:31:00", "fim": "2026-10-06T12:25:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Ian.Carreon", "loginFec": "Ian.Carreon", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 2.9}, {"date": "2026-10-06", "chamado": "9459", "codEvento": 106298, "desc": "Arquivo Login Logout e Hagent não estão disponíveis com dados do dia 05/10/2026, no NeomanagerImpactando 4 PA's / 100%Impacto confirmado pela operação", "impacto": 1.0, "inicio": "2026-10-06T10:09:00", "fim": null, "tipoEvento": "NEOMANAGER", "status": "Aberto", "loginAb": "Gustavo.Porfírio", "loginFec": null, "grupo": "Tel - MIS", "grupoTags": ["Tel - MIS"], "eps": "TEL", "slaH": null}, {"date": "2026-10-06", "chamado": "6224692026", "codEvento": 106300, "desc": "Interrupção da Rede de Voz de Franca SP - Perda de comunicação com o media Gateway Huawei de Franca SP", "impacto": null, "inicio": "2026-10-06T12:06:00", "fim": "2026-10-06T18:50:00", "tipoEvento": "REDE VOZ FIXA", "status": "Fechado", "loginAb": "Ian.Carreon", "loginFec": "Nathallia.Proetti", "grupo": "DAC - N3", "grupoTags": ["DAC - N3"], "eps": "DAC", "slaH": 6.73}, {"date": "2026-10-06", "chamado": "6041724", "codEvento": 106308, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Poranga - CE (CN: 88)", "impacto": null, "inicio": "2026-10-06T13:05:00", "fim": "2026-10-06T20:49:00", "tipoEvento": "REDE MEG", "status": "Fechado", "loginAb": "Nathallia.Proetti", "loginFec": "Petherson.Fagundes", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 7.73}, {"date": "2026-10-06", "chamado": "623413/2026", "codEvento": 106312, "desc": "Degradação de Centro de Roteamento IP Marabá - Degradação do centro de roteamento de Marabá ,devido a queda de 4x10G e 2x100G entre Belém e Marabá, causando a perda de 96% em concomitância de 4x10G da sua capacidade total.", "impacto": null, "inicio": "2026-10-06T14:46:00", "fim": null, "tipoEvento": "REDE FIXA", "status": "Aberto", "loginAb": "Petherson.Fagundes", "loginFec": null, "grupo": "DAC - N3", "grupoTags": ["DAC - N3"], "eps": "DAC", "slaH": null}, {"date": "2026-10-06", "chamado": "14537543", "codEvento": 106301, "desc": "Degradação de alguns serviços do Residencial Marabá, Parauapebas - Degradação do tráfego devido queda de links BBIP 9x10G e 2x100G, saturando link remanescente 1x10G.", "impacto": null, "inicio": "2026-10-06T14:48:00", "fim": "2026-10-06T18:25:00", "tipoEvento": "REDE VIRTUA", "status": "Fechado", "loginAb": "Nathallia.Proetti", "loginFec": "psantos", "grupo": "DAC - N3", "grupoTags": ["DAC - N3"], "eps": "DAC", "slaH": 3.62}, {"date": "2026-10-06", "chamado": "6042741", "codEvento": 106310, "desc": "Impossibilidade para fazer/receber chamadas e acessar a rede de dados 2G, 3G e 4G: Barra de São Miguel - PB (CN: 82)", "impacto": null, "inicio": "2026-10-06T16:24:00", "fim": null, "tipoEvento": "REDE MEG", "status": "Aberto", "loginAb": "psantos", "loginFec": null, "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": null}, {"date": "2026-10-06", "chamado": "6038421", "codEvento": 106306, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Cezarina, Costa Rica, Paraíso Das Águas, Palmeiras De Goiás e Marechal Thaumaturgo - GO, MS e AC", "impacto": null, "inicio": "2026-10-06T18:00:00", "fim": "2026-10-07T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Petherson.Fagundes", "loginFec": "Paulo.Vilaruel", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-06", "chamado": "6041826", "codEvento": 106303, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G - Torres - RS", "impacto": null, "inicio": "2026-10-06T18:00:00", "fim": "2026-10-07T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Petherson.Fagundes", "loginFec": "Paulo.Vilaruel", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-06", "chamado": "6026793", "codEvento": 106304, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Curiúva, Santo Antônio Do Paraíso, Salgado Filho, Nova Cantu e Cruzeiro Do Iguaçu - PR", "impacto": null, "inicio": "2026-10-06T18:00:00", "fim": "2026-10-07T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Petherson.Fagundes", "loginFec": "Paulo.Vilaruel", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-06", "chamado": "6038066", "codEvento": 106305, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G, 4G e 5G - Várias Cidades - AM e PA", "impacto": null, "inicio": "2026-10-06T18:00:00", "fim": "2026-10-07T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Petherson.Fagundes", "loginFec": "Paulo.Vilaruel", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-06", "chamado": "6040260", "codEvento": 106302, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Várias Cidades - SP", "impacto": null, "inicio": "2026-10-06T18:00:00", "fim": "2026-10-07T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Petherson.Fagundes", "loginFec": "Paulo.Vilaruel", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-06", "chamado": "6029596", "codEvento": 106307, "desc": "Instabilidade para fazer/receber ligações e utilizar os serviços Claro 2G, 3G e 4G - Várias Cidades - BA", "impacto": null, "inicio": "2026-10-06T18:00:00", "fim": "2026-10-07T08:00:00", "tipoEvento": "REDE GIC", "status": "Fechado", "loginAb": "Petherson.Fagundes", "loginFec": "Paulo.Vilaruel", "grupo": "DAC - GIC", "grupoTags": ["DAC - GIC"], "eps": "DAC", "slaH": 14.0}, {"date": "2026-10-06", "chamado": "5658026", "codEvento": 106309, "desc": "Degradação de alguns serviços do Residencial Marechal Cândido Rondon **Rede neutra VTAL** - Queda de ONTs **Rede neutra VTAL**", "impacto": null, "inicio": "2026-10-06T18:38:00", "fim": "2026-10-06T22:58:00", "tipoEvento": "REDE VIRTUA", "status": "Fechado", "loginAb": "Nathallia.Proetti", "loginFec": "Paulo.Vilaruel", "grupo": "DAC - N1", "grupoTags": ["DAC - N1"], "eps": "DAC", "slaH": 4.33}, {"date": "2026-10-06", "chamado": "14537766", "codEvento": 106311, "desc": "Degradação de alguns serviços do Residencial Itatiba - Queda de ONTs", "impacto": null, "inicio": "2026-10-06T20:30:00", "fim": "2026-10-06T23:40:00", "tipoEvento": "REDE VIRTUA", "status": "Fechado", "loginAb": "psantos", "loginFec": "Paulo.Vilaruel", "grupo": "DAC - N2", "grupoTags": ["DAC - N2"], "eps": "DAC", "slaH": 3.17}], "residencial": [{"date": "2026-10-01", "chamado": "INC-406287", "codEvento": 64672, "desc": "Tela Zero sem apresentar Virtua, imapactando 100% TEC N2 (20 HC's) / TEC ESPECIALISTA (78 HC's), impacto confirmado pelo staff Feliphe Borges", "impacto": null, "inicio": "2026-10-01T13:40:00", "fim": null, "tipoEvento": "SOLAR", "status": "Aberto", "loginAb": "vanuza.rodrigues", "loginFec": null, "grupo": "AeC - TEC N2, AeC - TEC ESP", "grupoTags": ["AeC - TEC N2", "AeC - TEC ESP"], "eps": "AEC", "slaH": null}, {"date": "2026-10-01", "chamado": "2026780000000", "codEvento": 64673, "desc": "Falha de Completamento.Impacto confirmado pela InfraCC - Julio Cesar.Atendimento registrado sob protocolo nº 2026781147237 referente a designação 3121387270", "impacto": null, "inicio": "2026-10-01T15:52:00", "fim": "2026-10-01T16:21:00", "tipoEvento": "REC", "status": "Fechado", "loginAb": "toniere.pereira", "loginFec": "toniere.pereira", "grupo": "DAC - N/A", "grupoTags": ["DAC - N/A"], "eps": "DAC", "slaH": 0.48}, {"date": "2026-10-01", "chamado": null, "codEvento": 64677, "desc": "Informe PPV 01/10 CTConforme validação Headends / CT: SheilaVALIDAÇÃO DTH: Leandro1. Novorizontino x Goiás - Campeonato Brasileiro - Série BHI 21:00 01/09Validado com sucesso.SM", "impacto": null, "inicio": "2026-10-01T21:00:00", "fim": "2026-10-01T21:00:00", "tipoEvento": "INFORME PPV", "status": "Fechado", "loginAb": "Sheila.Medeiros", "loginFec": "Sheila.Medeiros", "grupo": "DAC - N/A", "grupoTags": ["DAC - N/A"], "eps": "DAC", "slaH": 0.0}, {"date": "2026-10-02", "chamado": "SUPVOZ-45825", "codEvento": 64678, "desc": "Troncos em manutenção.Impacto confirmado pela operação.", "impacto": null, "inicio": "2026-10-02T07:01:00", "fim": "2026-10-02T16:40:00", "tipoEvento": "TELECOM", "status": "Fechado", "loginAb": "Lizandra.Silva", "loginFec": "Sheila.Medeiros", "grupo": "DAC - N/A", "grupoTags": ["DAC - N/A"], "eps": "ALM", "slaH": 9.65}, {"date": "2026-10-02", "chamado": "9424", "codEvento": 64681, "desc": "Ausencia de dados.Impacto confirmado pela operação.", "impacto": null, "inicio": "2026-10-02T07:54:00", "fim": "2026-10-02T22:00:00", "tipoEvento": "PORTAL MIS", "status": "Fechado", "loginAb": "Lizandra.Silva", "loginFec": "Vinicius.Souza", "grupo": "AeC - NOC Claro Brasil", "grupoTags": ["AeC - NOC Claro Brasil"], "eps": "AEC", "slaH": 14.1}, {"date": "2026-10-02", "chamado": "INC-407324", "codEvento": 64685, "desc": "Erro ao finalizar contestação, impactando 40%/ 50PA, impacto confirmado pela operação", "impacto": 0.4, "inicio": "2026-10-02T08:29:00", "fim": "2026-10-02T12:09:00", "tipoEvento": "SOLAR", "status": "Fechado", "loginAb": "vanuza.rodrigues", "loginFec": "vanuza.rodrigues", "grupo": "Alm - Combo Retenção", "grupoTags": ["Alm - Combo Retenção"], "eps": "ALM", "slaH": 3.67}, {"date": "2026-10-02", "chamado": "INC-407410", "codEvento": 64682, "desc": "Falha na contestação de fatura, impactando 190 – 100%;, impacto confirmado pela operação.", "impacto": 1.0, "inicio": "2026-10-02T08:58:00", "fim": "2026-10-02T10:00:00", "tipoEvento": "SOLAR", "status": "Fechado", "loginAb": "vanuza.rodrigues", "loginFec": "vanuza.rodrigues", "grupo": "BCC - BKO ANALISE DE DIVERGENCIAS, BCC - BKO COBRANCA INTEGRAL", "grupoTags": ["BCC - BKO ANALISE DE DIVERGENCIAS", "BCC - BKO COBRANCA INTEGRAL"], "eps": "BCC", "slaH": 1.03}, {"date": "2026-10-02", "chamado": "SUPVOZ-45833", "codEvento": 64683, "desc": "Falha no direcionamento de chamadas.Impactando 57 PA's - 100%.Impacto confirmado pela operação.", "impacto": null, "inicio": "2026-10-02T11:17:00", "fim": "2026-10-05T09:00:00", "tipoEvento": "TELECOM", "status": "Fechado", "loginAb": "Lizandra.Silva", "loginFec": "Lizandra.Silva", "grupo": "BCC - RETENCAO MASSIVO", "grupoTags": ["BCC - RETENCAO MASSIVO"], "eps": "BCC", "slaH": 69.72}, {"date": "2026-10-02", "chamado": "2026780000000", "codEvento": 64684, "desc": "TRONCO (81)2119-0260 Índice de 12% de Release 127 com causa 500 para a Claro com destino ao CN 8X.Atendimento registrado sob protocolo nº 2026781150991 referente a designação (81)2119-0260.Impacto confirmado pela InfraCC.", "impacto": null, "inicio": "2026-10-02T11:53:00", "fim": "2026-10-02T11:58:00", "tipoEvento": "REC", "status": "Fechado", "loginAb": "Robson.souza", "loginFec": "Robson.souza", "grupo": "DAC - N/A", "grupoTags": ["DAC - N/A"], "eps": "DAC", "slaH": 0.08}, {"date": "2026-10-02", "chamado": "INC-408044", "codEvento": 64689, "desc": "Número inválido.Impactando 60 PA's o que representa 100% da operação.Impacto confirmado pela operação.", "impacto": 1.0, "inicio": "2026-10-02T12:51:00", "fim": null, "tipoEvento": "NICE", "status": "Aberto", "loginAb": "Sheila.Medeiros", "loginFec": null, "grupo": "Alm - BKO RESIDENCIAL CM, Alm - MTF N1", "grupoTags": ["Alm - BKO RESIDENCIAL CM", "Alm - MTF N1"], "eps": "ALM", "slaH": null}, {"date": "2026-10-02", "chamado": "INC-408046", "codEvento": 64686, "desc": "Status de contratos desabilitados não estão sendo exibidos.Impactando 98 PA's - 100%Impacto confirmado pelo staff Feliphe Borges", "impacto": null, "inicio": "2026-10-02T12:52:00", "fim": "2026-10-02T14:00:00", "tipoEvento": "SOLAR", "status": "Fechado", "loginAb": "Kessia.Silva", "loginFec": "vanuza.rodrigues", "grupo": "AeC - TEC N2, AeC - TEC ESP", "grupoTags": ["AeC - TEC N2", "AeC - TEC ESP"], "eps": "AEC", "slaH": 1.13}, {"date": "2026-10-02", "chamado": "INC-408635", "codEvento": 64688, "desc": "Ligações mudas. Impactando Pré + CTR N1: 68 PA’S – 100% / PÓS PAGO N1: 115 PA’S – 100% / RET CTR: 57 PA’S – 100% / RET PÓS: 43 PA’S – 100%.Impacto confirmado pelo staff Gabriel.", "impacto": null, "inicio": "2026-10-02T15:59:00", "fim": "2026-10-02T16:40:00", "tipoEvento": "NICE", "status": "Fechado", "loginAb": "luana.oliveira", "loginFec": "Robson.souza", "grupo": "Alm - CM N1, Alm - MTF N1, Alm - MTF RET, Alm - CM RET", "grupoTags": ["Alm - CM N1", "Alm - MTF N1", "Alm - MTF RET", "Alm - CM RET"], "eps": "ALM", "slaH": 0.68}, {"date": "2026-10-02", "chamado": "INC-408566", "codEvento": 64687, "desc": "Ligação picotando.Pas Impactadas / nº absoluto e percentual: CM+MSV N1 200HCs - 100%, CM+MSV CRC 150HCs - 100%, CM+MSV RET 200HCs - 100%, N2 TEC 50HCs - 100%, TEC ESP 50HCs - 100%, CAP 20HCs - 100%, RET TEC 15HCs - 100%, ME 50HCs - 100%Impacto confirmado pelo staff Feliphe Borges", "impacto": null, "inicio": "2026-10-02T16:20:00", "fim": "2026-10-02T17:00:00", "tipoEvento": "NICE", "status": "Fechado", "loginAb": "luana.oliveira", "loginFec": "luana.oliveira", "grupo": "AeC - CM+MSV CRC, AeC - N2 TEC, AeC - CAP, AeC - ME, AeC - TEC ESP, AeC - RET TEC, AeC - CM+MSV N1, AeC - CM+MSV RET", "grupoTags": ["AeC - CM+MSV CRC", "AeC - N2 TEC", "AeC - CAP", "AeC - ME", "AeC - TEC ESP", "AeC - RET TEC", "AeC - CM+MSV N1", "AeC - CM+MSV RET"], "eps": "AEC", "slaH": 0.67}, {"date": "2026-10-02", "chamado": "INC-409020", "codEvento": 64690, "desc": "Entrada de chamada após finalização do período de atendimento.Impacto confirmado pela operação.", "impacto": null, "inicio": "2026-10-02T22:35:00", "fim": null, "tipoEvento": "NICE", "status": "Aberto", "loginAb": "Sheila.Medeiros", "loginFec": null, "grupo": "Tel - NET EMPRESAS – COMBO MULTI, Tel - NET EMPRESAS", "grupoTags": ["Tel - NET EMPRESAS – COMBO MULTI", "Tel - NET EMPRESAS"], "eps": "TEL", "slaH": null}, {"date": "2026-10-02", "chamado": "INC-409026", "codEvento": 64691, "desc": "Ligações em célula incorreta.Impacto confirmado pela operação.", "impacto": null, "inicio": "2026-10-02T22:56:00", "fim": null, "tipoEvento": "NICE", "status": "Aberto", "loginAb": "Sheila.Medeiros", "loginFec": null, "grupo": "Tel - ALTO VALOR", "grupoTags": ["Tel - ALTO VALOR"], "eps": "TEL", "slaH": null}, {"date": "2026-10-03", "chamado": "INC-409268", "codEvento": 64692, "desc": "Erro para iniciar diagnostico, impactando 100 PAs - 80%Impacto confirmado pela operação.", "impacto": null, "inicio": "2026-10-03T09:24:00", "fim": "2026-10-03T11:31:00", "tipoEvento": "SOLAR", "status": "Fechado", "loginAb": "Andre.ticona", "loginFec": "Andre.ticona", "grupo": "Alm - MTF N1, Alm - MTF RET, Alm - CM RET", "grupoTags": ["Alm - MTF N1", "Alm - MTF RET", "Alm - CM RET"], "eps": "ALM", "slaH": 2.12}, {"date": "2026-10-03", "chamado": "INC-409280", "codEvento": 64693, "desc": "Erro no agendamento de VT.CM+MSV N1 200HCs - 100%, CM+MSV CRC 100HCs - 100%, CM+MSV RET 200HCs - 100%, N2 TEC 50HCs - 100%, TEC ESP 50HCs - 100%, CAP 20HCs - 100%, RET TEC 15HCs - 100%, ME 50HCs - 100%Impacto confirmado pelo staff Guilherme Iparraguirre.", "impacto": null, "inicio": "2026-10-03T09:35:00", "fim": "2026-10-03T11:00:00", "tipoEvento": "SOLAR", "status": "Fechado", "loginAb": "Andre.ticona", "loginFec": "Andre.ticona", "grupo": "AeC - CM+MSV CRC, AeC - N2 TEC, AeC - ME, AeC - TEC ESP, AeC - RET TEC, AeC - CM+MSV N1, AeC - CM+MSV RET", "grupoTags": ["AeC - CM+MSV CRC", "AeC - N2 TEC", "AeC - ME", "AeC - TEC ESP", "AeC - RET TEC", "AeC - CM+MSV N1", "AeC - CM+MSV RET"], "eps": "AEC", "slaH": 1.42}, {"date": "2026-10-03", "chamado": "INC-409291", "codEvento": 64694, "desc": "Erro na jornada.Impactando 29 PAs - 100%Impacto confirmado pela operação.", "impacto": 1.0, "inicio": "2026-10-03T09:46:00", "fim": "2026-10-03T11:20:00", "tipoEvento": "SOLAR", "status": "Fechado", "loginAb": "Andre.ticona", "loginFec": "Andre.ticona", "grupo": "BCC - RETEÇÃO MASSIVA", "grupoTags": ["BCC - RETEÇÃO MASSIVA"], "eps": "BCC", "slaH": 1.57}, {"date": "2026-10-03", "chamado": "INC-409330", "codEvento": 64700, "desc": "Erro para agendamento de visita técnica.Impactando 8PAS - 100%Comfirmado pela operação.", "impacto": 1.0, "inicio": "2026-10-03T10:13:00", "fim": "2026-10-03T10:30:00", "tipoEvento": "SOLAR", "status": "Fechado", "loginAb": "Andre.ticona", "loginFec": "Andre.ticona", "grupo": "BCC - BLACK VIP", "grupoTags": ["BCC - BLACK VIP"], "eps": "BCC", "slaH": 0.28}, {"date": "2026-10-03", "chamado": "INC-409403", "codEvento": 64696, "desc": "Erro para agendamento de visita técnica.Impactando 175 PAs - 100%Impacto confirmado pelo staff Debora Seleri.", "impacto": null, "inicio": "2026-10-03T10:55:00", "fim": "2026-10-03T11:05:00", "tipoEvento": "SOLAR", "status": "Fechado", "loginAb": "Andre.ticona", "loginFec": "Andre.ticona", "grupo": "Tel - NET EMPRESAS, Tel - COMBO MULTI", "grupoTags": ["Tel - NET EMPRESAS", "Tel - COMBO MULTI"], "eps": "TEL", "slaH": 0.17}, {"date": "2026-10-03", "chamado": null, "codEvento": 64697, "desc": "Informe PPV 03/10 CTConforme validação Headends / CT: Guilherme VALIDAÇÃO DTH: Alexandre.1. Atlético-GO x América-MG - Campeonato Brasileiro - Série BHI 16:00 03/10Validado com sucesso.GB", "impacto": null, "inicio": "2026-10-03T16:00:00", "fim": "2026-10-03T16:00:00", "tipoEvento": "INFORME PPV", "status": "Fechado", "loginAb": "Robson.souza", "loginFec": "Robson.souza", "grupo": "DAC - N/A", "grupoTags": ["DAC - N/A"], "eps": "DAC", "slaH": 0.0}, {"date": "2026-10-03", "chamado": "9437", "codEvento": 64699, "desc": "Ausencia de arquivo.Impactando 18 - 100%.Impacto confirmado pela operação.", "impacto": 1.0, "inicio": "2026-10-03T17:11:00", "fim": null, "tipoEvento": "NEOMANAGER", "status": "Aberto", "loginAb": "Rogerio.Junior", "loginFec": null, "grupo": "BCC - BACKOFFICE ERROS OPERACIONAIS", "grupoTags": ["BCC - BACKOFFICE ERROS OPERACIONAIS"], "eps": "BCC", "slaH": null}, {"date": "2026-10-03", "chamado": null, "codEvento": 64698, "desc": "Informe PPV 03/10 CTConforme validação Headends / CT*: Guilherme VALIDAÇÃO DTH: Silvio1. Atlético-MG x Bragantino - Campeonato Brasileiro - Série A 2. Botafogo-SP x Vila Nova - Campeonato Brasileiro - Série BHI 18:30 03/10Validado com sucesso.GB", "impacto": null, "inicio": "2026-10-03T18:30:00", "fim": "2026-10-03T18:30:00", "tipoEvento": "INFORME PPV", "status": "Fechado", "loginAb": "Robson.souza", "loginFec": "Robson.souza", "grupo": "DAC - N/A", "grupoTags": ["DAC - N/A"], "eps": "DAC", "slaH": 0.0}, {"date": "2026-10-05", "chamado": "INC-412453", "codEvento": 64709, "desc": "Apresenta erro no solar na Jornada Técnica quando selecionado o ponto principal do cliente.Impactando: 100% - 100% TEC N2 (20 HC's) / TEC ESPECIALISTA (15 HC's).Impacto confirmado pela operação.", "impacto": 1.0, "inicio": "2026-10-05T00:00:00", "fim": null, "tipoEvento": "SOLAR", "status": "Aberto", "loginAb": "Sheila.Medeiros", "loginFec": null, "grupo": "AeC - TEC N2, AeC - TEC ESP", "grupoTags": ["AeC - TEC N2", "AeC - TEC ESP"], "eps": "AEC", "slaH": null}, {"date": "2026-10-05", "chamado": "SUPVOZ-45888", "codEvento": 64710, "desc": "Troncos em manutenção.Imformado pela operação.", "impacto": null, "inicio": "2026-10-05T07:09:00", "fim": "2026-10-06T07:00:00", "tipoEvento": "TELECOM", "status": "Fechado", "loginAb": "Robson.souza", "loginFec": "Robson.souza", "grupo": "DAC - N/A", "grupoTags": ["DAC - N/A"], "eps": "ALM", "slaH": 23.85}, {"date": "2026-10-05", "chamado": "INC-411112", "codEvento": 64702, "desc": "Lentidão na ferramenta, impactando 100% CM+MSV N1+S2S 170HC's, CM+MSV CRC 100HC's, CM+MSV RET+LEGADO 120HC's, ME 40HC's, CAP 10HC's, N2 TEC 25HC's,TEC ESP 15HC's, impacto confirmado pelo Staff Douglas", "impacto": null, "inicio": "2026-10-05T10:45:00", "fim": "2026-10-05T11:30:00", "tipoEvento": "SOLAR", "status": "Fechado", "loginAb": "vanuza.rodrigues", "loginFec": "lucas.alves", "grupo": "AeC - CM+MSV+LEGADO RET, AeC - CM+MSV N1+S2S, AeC - CM+MSV CRC, AeC - N2 TEC, AeC - CAP, AeC - ME, AeC - TEC ESP", "grupoTags": ["AeC - CM+MSV+LEGADO RET", "AeC - CM+MSV N1+S2S", "AeC - CM+MSV CRC", "AeC - N2 TEC", "AeC - CAP", "AeC - ME", "AeC - TEC ESP"], "eps": "AEC", "slaH": 0.75}, {"date": "2026-10-05", "chamado": "INC-411145", "codEvento": 64703, "desc": "Lentidão na ferramenta, impactando 100PA's/ 100%, impacto confirmado pelos Staff's Gabriel e Daniel.", "impacto": null, "inicio": "2026-10-05T10:56:00", "fim": "2026-10-05T11:43:00", "tipoEvento": "SOLAR", "status": "Fechado", "loginAb": "vanuza.rodrigues", "loginFec": "vanuza.rodrigues", "grupo": "Alm - CM N1, Alm - MTF N1, Alm - MTF RET, Alm - CM RET", "grupoTags": ["Alm - CM N1", "Alm - MTF N1", "Alm - MTF RET", "Alm - CM RET"], "eps": "ALM", "slaH": 0.78}, {"date": "2026-10-05", "chamado": "2026780000000", "codEvento": 64704, "desc": "TRONCO (11) 2928-3860 apresentando indisponibilidade.Atendimento registrado sob protocolo nº 2026781160896 referente a designação (11) 2928-3860Impacto confirmado pela InfraCC.", "impacto": null, "inicio": "2026-10-05T11:40:00", "fim": "2026-10-05T11:49:00", "tipoEvento": "REC", "status": "Fechado", "loginAb": "Kessia.Silva", "loginFec": "Kessia.Silva", "grupo": "DAC - N/A", "grupoTags": ["DAC - N/A"], "eps": "DAC", "slaH": 0.15}, {"date": "2026-10-05", "chamado": "INC-411264", "codEvento": 64706, "desc": "Sistema inoperante.Impactando 14 PA's - 100%.Impacto confirmado pela operação.", "impacto": null, "inicio": "2026-10-05T11:42:00", "fim": "2026-10-05T13:30:00", "tipoEvento": "NICE CHAT", "status": "Fechado", "loginAb": "Lizandra.Silva", "loginFec": "Lizandra.Silva", "grupo": "BCC - ATENDIMENTO TOTENS, BCC - PROCON", "grupoTags": ["BCC - ATENDIMENTO TOTENS", "BCC - PROCON"], "eps": "BCC", "slaH": 1.8}, {"date": "2026-10-05", "chamado": "2026780000000", "codEvento": 64705, "desc": "TRONCO (11) 2102-5010 apresentando Índice de 16% de REL 38 Causa 500 da Estrutura do VAS com destino CN11 para todas as Operadoras.Atendimento registrado sob protocolo nº 2026781161048 referente a designação (11) 2102-5010Impacto confirmado pela InfraCC.", "impacto": null, "inicio": "2026-10-05T11:51:00", "fim": "2026-10-05T12:02:00", "tipoEvento": "REC", "status": "Fechado", "loginAb": "Kessia.Silva", "loginFec": "Kessia.Silva", "grupo": "DAC - N/A", "grupoTags": ["DAC - N/A"], "eps": "DAC", "slaH": 0.18}, {"date": "2026-10-05", "chamado": "INC-412344", "codEvento": 64708, "desc": "Erro para baixa de OC referente ao BACKLOGS gerados por erro de importação dos leads do SOLAR para o NETSMS.Impactando 220 PA´s - 100%Impacto confirmado pela Staff Janaína Cristina.", "impacto": 1.0, "inicio": "2026-10-05T19:38:00", "fim": null, "tipoEvento": "NETSMS", "status": "Aberto", "loginAb": "toniere.pereira", "loginFec": null, "grupo": "AeC - CM+MSV RET", "grupoTags": ["AeC - CM+MSV RET"], "eps": "AEC", "slaH": null}, {"date": "2026-10-06", "chamado": "9456", "codEvento": 64711, "desc": "Ausencia de dados.Impacto confirmado pela operação.", "impacto": null, "inicio": "2026-10-06T08:54:00", "fim": "2026-10-06T10:00:00", "tipoEvento": "PORTAL MIS", "status": "Fechado", "loginAb": "Vinicius.Souza", "loginFec": "Robson.souza", "grupo": "AeC - NOC Claro Brasil", "grupoTags": ["AeC - NOC Claro Brasil"], "eps": "AEC", "slaH": 1.1}, {"date": "2026-10-06", "chamado": "9461", "codEvento": 64712, "desc": "Dados desatualizados.Impactando 4 PA's / 100%.Impacto confirmado pela operação", "impacto": null, "inicio": "2026-10-06T10:29:00", "fim": null, "tipoEvento": "NEOMANAGER", "status": "Aberto", "loginAb": "Lizandra.Silva", "loginFec": null, "grupo": "Tel - MIS", "grupoTags": ["Tel - MIS"], "eps": "TEL", "slaH": null}, {"date": "2026-10-06", "chamado": "61022026", "codEvento": 64716, "desc": "Redução no volume das chamadas direcionadas para o seguimento de S2S Empresas, impacto confirmado pelo Jadson Menezes.", "impacto": null, "inicio": "2026-10-06T12:00:00", "fim": null, "tipoEvento": "TELECOM", "status": "Aberto", "loginAb": "guilherme.galvão", "loginFec": null, "grupo": "Tel - NET EMPRESAS S2S", "grupoTags": ["Tel - NET EMPRESAS S2S"], "eps": "TEL", "slaH": null}, {"date": "2026-10-06", "chamado": "INC-414087", "codEvento": 64713, "desc": "Falha ao pesquisar endereço.Impactando 18 PA's - 100%.Impacto confirmado pela operação.", "impacto": 1.0, "inicio": "2026-10-06T14:34:00", "fim": null, "tipoEvento": "SOLAR", "status": "Aberto", "loginAb": "lucas.alves", "loginFec": null, "grupo": "BCC - NET D2D VENDEDOR PR", "grupoTags": ["BCC - NET D2D VENDEDOR PR"], "eps": "BCC", "slaH": null}, {"date": "2026-10-06", "chamado": "2026780000000", "codEvento": 64714, "desc": "Índice de 18% de Release com o código errado proveniente da Operadora Claro. O Discador está recebendo REL 41 com causa 603 para números inválidos.", "impacto": null, "inicio": "2026-10-06T14:52:00", "fim": "2026-10-06T15:18:00", "tipoEvento": "REC", "status": "Fechado", "loginAb": "toniere.pereira", "loginFec": "toniere.pereira", "grupo": "DAC - N/A", "grupoTags": ["DAC - N/A"], "eps": "DAC", "slaH": 0.43}, {"date": "2026-10-06", "chamado": null, "codEvento": 64715, "desc": "Informe PPV 06/10 CTConforme validação Headends / CT: SheilaVALIDAÇÃO DTH: Vanessa1. Goiás x Athletic - Campeonato Brasileiro - Série BHI 20:30 06/09Validado com sucesso.SM", "impacto": null, "inicio": "2026-10-06T20:30:00", "fim": "2026-10-06T20:30:00", "tipoEvento": "INFORME PPV", "status": "Fechado", "loginAb": "Sheila.Medeiros", "loginFec": "Sheila.Medeiros", "grupo": "DAC - N/A", "grupoTags": ["DAC - N/A"], "eps": "DAC", "slaH": 0.0}]};
+
+const state = {
+  team: 'movel',
+  dateFrom: null,
+  dateTo: null,
+  grupo: 'Todos',
+  status: 'Todos',
+};
+
+const COLUMN_DEFS = [
+  { key: 'date', label: 'Data', get: (r) => (r.date ? r.date.split('-').reverse().join('/') : '—') },
+  { key: 'eps', label: 'EPS', get: (r) => r.eps || '—' },
+  { key: 'chamado', label: 'Chamado', get: (r) => r.chamado || '—' },
+  { key: 'codEvento', label: 'Cod. evento', get: (r) => String(r.codEvento ?? '—') },
+  { key: 'desc', label: 'Descricao', get: (r) => r.desc || '—' },
+  { key: 'tipoEvento', label: 'Tipo de evento', get: (r) => r.tipoEvento || '—' },
+  { key: 'inicio', label: 'Inicio', get: (r) => fmtDataHora(r.inicio) },
+  { key: 'fim', label: 'Fim', get: (r) => fmtDataHora(r.fim) },
+  { key: 'slaH', label: 'SLA', get: (r) => fmtHoras(r.slaH) },
+  { key: 'status', label: 'Status', get: (r) => r.status || '—' },
+  { key: 'impacto', label: 'Impacto', get: (r) => fmtPct(r.impacto) },
+];
+
+const colFilterState = {};
+let cfOpenKey = null;
+let cfPendingChecked = null;
+
+const charts = {};
+let inkColor = '#1C1917';
+let lineColor = '#E5E0DD';
+let mutedColor = '#6B6461';
+let accentColor = '#7A1220';
+let accent2Color = '#E4536B';
+let surfaceColor = '#FFFFFF';
+
+function readThemeColors() {
+  const cs = getComputedStyle(document.documentElement);
+  inkColor = cs.getPropertyValue('--ink').trim() || inkColor;
+  lineColor = cs.getPropertyValue('--line').trim() || lineColor;
+  mutedColor = cs.getPropertyValue('--muted').trim() || mutedColor;
+  accentColor = cs.getPropertyValue('--accent').trim() || accentColor;
+  accent2Color = cs.getPropertyValue('--accent-2').trim() || accent2Color;
+  surfaceColor = cs.getPropertyValue('--surface').trim() || surfaceColor;
+}
+
+function fmtInt(n) {
+  return new Intl.NumberFormat('pt-BR').format(n);
+}
+
+function fmtHoras(h) {
+  if (h === null || h === undefined) return '—';
+  const totalMin = Math.round(h * 60);
+  const hh = Math.floor(totalMin / 60);
+  const mm = totalMin % 60;
+  if (hh === 0) return `${mm}min`;
+  return `${hh}h ${String(mm).padStart(2, '0')}min`;
+}
+
+function fmtDataHora(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
+function fmtPct(v) {
+  if (v === null || v === undefined) return '—';
+  return `${Math.round(v * 100)}%`;
+}
+
+function groupLabel(team) {
+  return team === 'movel' ? 'Ilha' : 'Célula';
+}
+
+function teamRows(team) {
+  return DATA[team];
+}
+
+function dateBounds(rows) {
+  let min = null, max = null;
+  for (const r of rows) {
+    if (!r.date) continue;
+    if (min === null || r.date < min) min = r.date;
+    if (max === null || r.date > max) max = r.date;
+  }
+  return { min, max };
+}
+
+function applyFilters(rows) {
+  return rows.filter((r) => {
+    if (state.dateFrom && (!r.date || r.date < state.dateFrom)) return false;
+    if (state.dateTo && (!r.date || r.date > state.dateTo)) return false;
+    if (state.status !== 'Todos' && r.status !== state.status) return false;
+    if (state.grupo !== 'Todos' && !r.grupoTags.includes(state.grupo)) return false;
+    return true;
+  });
+}
+
+function applyColumnFilters(rows) {
+  const activeKeys = Object.keys(colFilterState).filter((k) => colFilterState[k] instanceof Set);
+  if (!activeKeys.length) return rows;
+  return rows.filter((r) => activeKeys.every((k) => {
+    const def = COLUMN_DEFS.find((d) => d.key === k);
+    return colFilterState[k].has(def.get(r));
+  }));
+}
+
+function rowsForColumnOptions(excludeKey) {
+  const base = applyFilters(teamRows(state.team));
+  const activeKeys = Object.keys(colFilterState).filter((k) => k !== excludeKey && colFilterState[k] instanceof Set);
+  if (!activeKeys.length) return base;
+  return base.filter((r) => activeKeys.every((k) => {
+    const def = COLUMN_DEFS.find((d) => d.key === k);
+    return colFilterState[k].has(def.get(r));
+  }));
+}
+
+function getTableRows() {
+  return applyColumnFilters(applyFilters(teamRows(state.team)));
+}
+
+function groupCount(rows, field, topN) {
+  const map = new Map();
+  for (const r of rows) {
+    const v = r[field];
+    if (v === null || v === undefined || v === '') continue;
+    map.set(v, (map.get(v) || 0) + 1);
+  }
+  let arr = Array.from(map.entries()).map(([label, value]) => ({ label, value }));
+  arr.sort((a, b) => b.value - a.value);
+  if (topN) arr = arr.slice(0, topN);
+  return arr;
+}
+
+function groupCountTags(rows, topN) {
+  const map = new Map();
+  for (const r of rows) {
+    for (const t of r.grupoTags) {
+      map.set(t, (map.get(t) || 0) + 1);
+    }
+  }
+  let arr = Array.from(map.entries()).map(([label, value]) => ({ label, value }));
+  arr.sort((a, b) => b.value - a.value);
+  if (topN) arr = arr.slice(0, topN);
+  return arr;
+}
+
+function loginPairCounts(rows) {
+  const abrir = new Map();
+  const fechar = new Map();
+  for (const r of rows) {
+    if (r.loginAb) abrir.set(r.loginAb, (abrir.get(r.loginAb) || 0) + 1);
+    if (r.loginFec) fechar.set(r.loginFec, (fechar.get(r.loginFec) || 0) + 1);
+  }
+  const names = new Set([...abrir.keys(), ...fechar.keys()]);
+  let arr = Array.from(names).map((n) => ({
+    label: n,
+    abertos: abrir.get(n) || 0,
+    fechados: fechar.get(n) || 0,
+  }));
+  arr.sort((a, b) => (b.abertos + b.fechados) - (a.abertos + a.fechados));
+  return arr;
+}
+
+function destroyChart(key) {
+  if (charts[key]) {
+    charts[key].destroy();
+    delete charts[key];
+  }
+}
+
+function tickFont(size) {
+  return { family: "'Inter', sans-serif", size: size || 11 };
+}
+
+function renderKPI(filtered) {
+  document.getElementById('kpi-total').textContent = fmtInt(filtered.length);
+  const abertos = filtered.filter((r) => r.status === 'Aberto').length;
+  const fechados = filtered.length - abertos;
+  document.getElementById('kpi-sub').textContent = `${fmtInt(fechados)} fechados · ${fmtInt(abertos)} em aberto`;
+}
+
+function renderStatusPie(filtered) {
+  const counts = groupCount(filtered, 'status');
+  const labels = counts.map((c) => c.label);
+  const values = counts.map((c) => c.value);
+  const colors = labels.map((l) => (l === 'Fechado' ? accentColor : l === 'Aberto' ? accent2Color : mutedColor));
+
+  destroyChart('status');
+  const ctx = document.getElementById('chart-status').getContext('2d');
+  charts.status = new Chart(ctx, {
+    type: 'pie',
+    data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 2, borderColor: surfaceColor }] },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'right', labels: { color: inkColor, font: tickFont(12), padding: 14, boxWidth: 12 } },
+        tooltip: { callbacks: { label: (ctx) => ` ${ctx.label}: ${fmtInt(ctx.parsed)}` } },
+      },
+    },
+  });
+}
+
+function renderTipoEvento(filtered) {
+  const counts = groupCount(filtered, 'tipoEvento', 12);
+  destroyChart('tipo');
+  const ctx = document.getElementById('chart-tipo').getContext('2d');
+  charts.tipo = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: counts.map((c) => c.label),
+      datasets: [{ data: counts.map((c) => c.value), backgroundColor: accentColor, borderRadius: 3, maxBarThickness: 30 }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => ` ${fmtInt(ctx.parsed.y)} chamados` } } },
+      scales: {
+        x: { ticks: { color: mutedColor, font: tickFont(10), maxRotation: 55, minRotation: 55 }, grid: { display: false }, border: { display: false } },
+        y: { beginAtZero: true, ticks: { color: mutedColor, precision: 0, font: tickFont(10) }, grid: { color: lineColor }, border: { display: false } },
+      },
+    },
+  });
+}
+
+function renderEps(filtered) {
+  const counts = groupCount(filtered, 'eps');
+  destroyChart('eps');
+  const ctx = document.getElementById('chart-eps').getContext('2d');
+  charts.eps = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: counts.map((c) => c.label),
+      datasets: [{
+        label: 'Chamados',
+        data: counts.map((c) => c.value),
+        borderColor: accentColor,
+        backgroundColor: accentColor,
+        pointBackgroundColor: accentColor,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        tension: 0.35,
+        borderWidth: 2,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => ` ${fmtInt(ctx.parsed.y)} chamados` } } },
+      scales: {
+        x: { ticks: { color: mutedColor, font: tickFont(11) }, grid: { display: false }, border: { display: false } },
+        y: { beginAtZero: true, ticks: { color: mutedColor, precision: 0, font: tickFont(10) }, grid: { color: lineColor }, border: { display: false } },
+      },
+    },
+  });
+}
+
+function renderGrupo(filtered) {
+  const counts = groupCountTags(filtered);
+  const scrollWrap = document.getElementById('chart-grupo-scroll');
+  const innerWrap = document.getElementById('chart-grupo-wrap');
+  const barH = 22;
+  const minH = scrollWrap.clientHeight || 300;
+  innerWrap.style.height = Math.max(minH, counts.length * barH) + 'px';
+
+  destroyChart('grupo');
+  const ctx = document.getElementById('chart-grupo').getContext('2d');
+  charts.grupo = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: counts.map((c) => c.label),
+      datasets: [{ data: counts.map((c) => c.value), backgroundColor: accentColor, borderRadius: 3, maxBarThickness: 16 }],
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => ` ${fmtInt(ctx.parsed.x)} chamados` } } },
+      scales: {
+        x: { beginAtZero: true, ticks: { color: mutedColor, precision: 0, font: tickFont(10) }, grid: { color: lineColor }, border: { display: false } },
+        y: { ticks: { color: inkColor, font: tickFont(11) }, grid: { display: false }, border: { display: false } },
+      },
+    },
+  });
+}
+
+function renderLogin(filtered) {
+  const pairs = loginPairCounts(filtered);
+  destroyChart('login');
+  const ctx = document.getElementById('chart-login').getContext('2d');
+  charts.login = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: pairs.map((p) => p.label),
+      datasets: [
+        {
+          label: 'Fechamento', data: pairs.map((p) => p.fechados),
+          borderColor: accent2Color, backgroundColor: accent2Color, pointBackgroundColor: accent2Color,
+          pointRadius: 3, pointHoverRadius: 5, tension: 0.3, borderWidth: 2,
+        },
+        {
+          label: 'Chamados', data: pairs.map((p) => p.abertos),
+          borderColor: accentColor, backgroundColor: accentColor, pointBackgroundColor: accentColor,
+          pointRadius: 3, pointHoverRadius: 5, tension: 0.3, borderWidth: 2,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top', align: 'start', labels: { color: inkColor, font: tickFont(12), boxWidth: 10, usePointStyle: true, padding: 12 } },
+        tooltip: { callbacks: { label: (ctx) => ` ${ctx.dataset.label}: ${fmtInt(ctx.parsed.y)}` } },
+      },
+      scales: {
+        x: { ticks: { color: mutedColor, font: tickFont(10), maxRotation: 55, minRotation: 55 }, grid: { display: false }, border: { display: false } },
+        y: { beginAtZero: true, ticks: { color: mutedColor, precision: 0, font: tickFont(10) }, grid: { color: lineColor }, border: { display: false } },
+      },
+    },
+  });
+}
+
+function renderTableHead() {
+  const tr = document.getElementById('table-head-row');
+  tr.innerHTML = COLUMN_DEFS.map((d) => (
+    `<th data-col="${d.key}"><span class="th-label">${d.label}</span><button type="button" class="th-filter-btn" data-col="${d.key}" aria-label="Filtrar ${d.label}">▾</button></th>`
+  )).join('');
+  tr.querySelectorAll('.th-filter-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const key = btn.dataset.col;
+      if (cfOpenKey === key) { closeColumnFilter(); return; }
+      openColumnFilter(key, btn);
+    });
+  });
+}
+
+function updateFilterButtonStates() {
+  document.querySelectorAll('.th-filter-btn').forEach((btn) => {
+    const key = btn.dataset.col;
+    btn.classList.toggle('th-filter-btn--active', colFilterState[key] instanceof Set);
+  });
+}
+
+function closeColumnFilter() {
+  const popover = document.getElementById('cf-popover');
+  if (popover) popover.hidden = true;
+  cfOpenKey = null;
+  cfPendingChecked = null;
+}
+
+function positionPopover(btnEl, popover) {
+  const rect = btnEl.getBoundingClientRect();
+  const popW = 260;
+  const margin = 8;
+  const gap = 4;
+  let left = rect.right - popW;
+  if (left < margin) left = margin;
+  if (left + popW > window.innerWidth - margin) left = window.innerWidth - popW - margin;
+  popover.style.left = left + 'px';
+
+  const list = document.getElementById('cf-list');
+  list.style.maxHeight = '260px';
+  popover.style.top = '0px';
+  const fullH = popover.offsetHeight;              // altura com a lista no tamanho maximo
+  const chrome = fullH - list.offsetHeight;        // busca + "selecionar tudo" + botoes
+  const below = window.innerHeight - rect.bottom - gap - margin;
+  const above = rect.top - gap - margin;
+
+  let top;
+  if (fullH <= below) {
+    top = rect.bottom + gap;                       // cabe embaixo do botao
+  } else if (fullH <= above) {
+    top = rect.top - gap - fullH;                  // cabe em cima do botao
+  } else {
+    // nao cabe inteiro em nenhum lado: encolhe a lista e usa o lado com mais espaco
+    const useBelow = below >= above;
+    const room = useBelow ? below : above;
+    list.style.maxHeight = Math.max(80, Math.min(260, room - chrome)) + 'px';
+    top = useBelow ? rect.bottom + gap : rect.top - gap - popover.offsetHeight;
+  }
+  top = Math.max(margin, Math.min(top, window.innerHeight - popover.offsetHeight - margin));
+  popover.style.top = top + 'px';
+}
+
+function updateSelectAllState(uniqueVals) {
+  const allChecked = uniqueVals.every((v) => cfPendingChecked.has(v));
+  document.getElementById('cf-select-all').checked = allChecked && uniqueVals.length > 0;
+}
+
+function renderColumnFilterList(uniqueVals, counts) {
+  const list = document.getElementById('cf-list');
+  list.innerHTML = uniqueVals.map((v) => {
+    const checked = cfPendingChecked.has(v) ? 'checked' : '';
+    const safe = escapeHtml(v);
+    return `<label class="cf-item" data-value="${safe}"><input type="checkbox" value="${safe}" ${checked}><span>${safe}</span><span class="cf-item__count">${counts.get(v)}</span></label>`;
+  }).join('');
+  updateSelectAllState(uniqueVals);
+  list.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
+    cb.addEventListener('change', () => {
+      if (cb.checked) cfPendingChecked.add(cb.value); else cfPendingChecked.delete(cb.value);
+      updateSelectAllState(uniqueVals);
+    });
+  });
+}
+
+function openColumnFilter(key, btnEl) {
+  closeColumnFilter();
+  const def = COLUMN_DEFS.find((d) => d.key === key);
+  const rows = rowsForColumnOptions(key);
+  const counts = new Map();
+  for (const r of rows) {
+    const v = def.get(r);
+    counts.set(v, (counts.get(v) || 0) + 1);
+  }
+  const uniqueVals = Array.from(counts.keys()).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
+
+  const existing = colFilterState[key];
+  cfPendingChecked = new Set(existing instanceof Set ? [...existing].filter((v) => counts.has(v)) : uniqueVals);
+  cfOpenKey = key;
+
+  renderColumnFilterList(uniqueVals, counts);
+
+  const popover = document.getElementById('cf-popover');
+  popover.hidden = false;
+  positionPopover(btnEl, popover);
+
+  const search = document.getElementById('cf-search');
+  search.value = '';
+  search.focus();
+}
+
+function renderTable(filtered) {
+  const tbody = document.getElementById('table-body');
+  const sorted = [...filtered].sort((a, b) => (b.inicio || '').localeCompare(a.inicio || ''));
+  const rowsHtml = sorted.map((r) => {
+    const pillClass = r.status === 'Fechado' ? 'pill pill--ok' : 'pill pill--open';
+    const tipoEv = r.tipoEvento || '—';
+    const desc = r.desc || '—';
+    return `<tr>
+      <td>${r.date ? r.date.split('-').reverse().join('/') : '—'}</td>
+      <td>${escapeHtml(r.eps || '—')}</td>
+      <td class="mono" title="${escapeHtml(r.chamado || '—')}">${escapeHtml(r.chamado || '—')}</td>
+      <td class="mono">${r.codEvento ?? '—'}</td>
+      <td class="desc" title="${escapeHtml(desc)}">${escapeHtml(desc)}</td>
+      <td title="${escapeHtml(tipoEv)}">${escapeHtml(tipoEv)}</td>
+      <td class="mono">${fmtDataHora(r.inicio)}</td>
+      <td class="mono">${fmtDataHora(r.fim)}</td>
+      <td class="mono">${fmtHoras(r.slaH)}</td>
+      <td><span class="${pillClass}">${escapeHtml(r.status || '—')}</span></td>
+      <td>${fmtPct(r.impacto)}</td>
+    </tr>`;
+  }).join('');
+  tbody.innerHTML = rowsHtml || `<tr><td colspan="11" class="empty">Nenhum chamado encontrado para os filtros selecionados.</td></tr>`;
+  document.getElementById('table-count').textContent = `${fmtInt(sorted.length)} chamado${sorted.length === 1 ? '' : 's'}`;
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str === null || str === undefined ? '' : String(str);
+  return div.innerHTML;
+}
+
+function populateFilters(team) {
+  const rows = teamRows(team);
+  const bounds = dateBounds(rows);
+  state.dateFrom = bounds.min;
+  state.dateTo = bounds.max;
+  state.grupo = 'Todos';
+  state.status = 'Todos';
+
+  const fromInput = document.getElementById('f-date-from');
+  const toInput = document.getElementById('f-date-to');
+  fromInput.min = bounds.min; fromInput.max = bounds.max; fromInput.value = bounds.min;
+  toInput.min = bounds.min; toInput.max = bounds.max; toInput.value = bounds.max;
+
+  const grupoSelect = document.getElementById('f-grupo');
+  const grupoCounts = groupCountTags(rows);
+  const label = groupLabel(team);
+  document.getElementById('f-grupo-label').textContent = label;
+  document.getElementById('grupo-chart-title').textContent = `Qtd. de chamados por ${label.toLowerCase()}`;
+  grupoSelect.innerHTML = `<option value="Todos">Todas as ${label.toLowerCase()}s</option>` +
+    grupoCounts.map((c) => `<option value="${escapeHtml(c.label)}">${escapeHtml(c.label)} (${c.value})</option>`).join('');
+  grupoSelect.value = 'Todos';
+
+  document.getElementById('f-status').value = 'Todos';
+
+  Object.keys(colFilterState).forEach((k) => delete colFilterState[k]);
+  closeColumnFilter();
+  updateFilterButtonStates();
+}
+
+function renderAll() {
+  const rows = teamRows(state.team);
+  const filtered = applyFilters(rows);
+  renderKPI(filtered);
+  renderStatusPie(filtered);
+  renderTipoEvento(filtered);
+  renderEps(filtered);
+  renderGrupo(filtered);
+  renderLogin(filtered);
+  renderTable(applyColumnFilters(filtered));
+  scheduleFitCanvas();
+}
+
+function switchTeam(team) {
+  state.team = team;
+  document.documentElement.setAttribute('data-team', team);
+  document.querySelectorAll('.tab').forEach((el) => {
+    el.classList.toggle('tab--active', el.dataset.team === team);
+  });
+  readThemeColors();
+  populateFilters(team);
+  renderAll();
+}
+
+function fitCanvas() {
+  const outer = document.getElementById('canvas-outer');
+  const fixed = document.getElementById('canvas-fixed');
+  if (!outer || !fixed) return;
+  const NATIVE_W = 1500;
+  const NATIVE_H = 1050;
+  const MIN_SCALE = 0.42;
+  const MAX_SCALE = 2.2;
+  const availableWidth = outer.clientWidth;
+  let scale = availableWidth / NATIVE_W;
+  if (scale < MIN_SCALE) {
+    scale = MIN_SCALE;
+    outer.style.overflowX = 'auto';
+  } else if (scale > MAX_SCALE) {
+    scale = MAX_SCALE;
+    outer.style.overflowX = 'auto';
+  } else {
+    outer.style.overflowX = 'hidden';
+  }
+  fixed.style.transform = `scale(${scale})`;
+  outer.style.height = Math.ceil(NATIVE_H * scale) + 'px';
+  fixed.style.visibility = 'visible';
+}
+
+function scheduleFitCanvas() {
+  fitCanvas();
+  requestAnimationFrame(() => {
+    requestAnimationFrame(fitCanvas);
+  });
+}
+
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(() => {});
+  } else {
+    document.exitFullscreen().catch(() => {});
+  }
+}
+
+function attachEvents() {
+  document.querySelectorAll('.tab').forEach((el) => {
+    el.addEventListener('click', () => switchTeam(el.dataset.team));
+  });
+  document.getElementById('f-date-from').addEventListener('change', (e) => { state.dateFrom = e.target.value; renderAll(); });
+  document.getElementById('f-date-to').addEventListener('change', (e) => { state.dateTo = e.target.value; renderAll(); });
+  document.getElementById('f-grupo').addEventListener('change', (e) => { state.grupo = e.target.value; renderAll(); });
+  document.getElementById('f-status').addEventListener('change', (e) => { state.status = e.target.value; renderAll(); });
+
+  document.getElementById('cf-search').addEventListener('input', (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('#cf-list .cf-item').forEach((item) => {
+      const text = item.dataset.value.toLowerCase();
+      item.style.display = text.includes(q) ? '' : 'none';
+    });
+  });
+  document.getElementById('cf-select-all').addEventListener('change', (e) => {
+    const checked = e.target.checked;
+    document.querySelectorAll('#cf-list .cf-item').forEach((item) => {
+      if (item.style.display === 'none') return;
+      const cb = item.querySelector('input[type="checkbox"]');
+      cb.checked = checked;
+      if (checked) cfPendingChecked.add(cb.value); else cfPendingChecked.delete(cb.value);
+    });
+  });
+  document.getElementById('cf-ok').addEventListener('click', () => {
+    if (!cfOpenKey) return;
+    const def = COLUMN_DEFS.find((d) => d.key === cfOpenKey);
+    const rows = rowsForColumnOptions(cfOpenKey);
+    const allVals = new Set(rows.map((r) => def.get(r)));
+    const isFull = allVals.size === cfPendingChecked.size && [...allVals].every((v) => cfPendingChecked.has(v));
+    colFilterState[cfOpenKey] = isFull ? null : new Set(cfPendingChecked);
+    closeColumnFilter();
+    updateFilterButtonStates();
+    renderTable(getTableRows());
+  });
+  document.getElementById('cf-cancel').addEventListener('click', closeColumnFilter);
+  document.addEventListener('click', (e) => {
+    const popover = document.getElementById('cf-popover');
+    if (popover.hidden) return;
+    if (popover.contains(e.target)) return;
+    if (e.target.closest('.th-filter-btn')) return;
+    closeColumnFilter();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeColumnFilter();
+  });
+  window.addEventListener('scroll', (e) => {
+    const popover = document.getElementById('cf-popover');
+    if (popover && e.target instanceof Node && popover.contains(e.target)) return;  // rolar a lista por dentro nao fecha
+    closeColumnFilter();
+  }, true);
+
+  const fsBtn = document.getElementById('btn-fullscreen');
+  fsBtn.addEventListener('click', toggleFullscreen);
+  document.addEventListener('fullscreenchange', () => {
+    fsBtn.classList.toggle('is-fullscreen', !!document.fullscreenElement);
+    fsBtn.setAttribute('aria-label', document.fullscreenElement ? 'Sair da tela cheia' : 'Ampliar tela');
+    fsBtn.title = document.fullscreenElement ? 'Sair da tela cheia' : 'Ampliar tela';
+    scheduleFitCanvas();
+    setTimeout(fitCanvas, 150);
+  });
+
+  window.addEventListener('resize', scheduleFitCanvas);
+}
+
+function init() {
+  document.documentElement.setAttribute('data-team', state.team);
+  readThemeColors();
+  Chart.defaults.font.family = "'Inter', sans-serif";
+  renderTableHead();
+  attachEvents();
+  populateFilters(state.team);
+  renderAll();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+
+</script>
+</body>
+</html>
